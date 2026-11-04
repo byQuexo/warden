@@ -1,0 +1,33 @@
+suite: edge
+description: Engine edge cases (combinators, wildcards, chains, custom kinds, normalization).
+principals:
+  u:     { subject: { id: u, roles: [user] }, agent: a }
+  adm:   { subject: { id: adm, roles: [admin] }, agent: a }
+  adm-b: { subject: { id: adm, roles: [admin] }, agent: b, act: [a] }
+  adm-c: { subject: { id: adm, roles: [admin] }, agent: c, act: [a, b] }
+  ops:   { subject: { id: adm, roles: [admin] }, agent: ops }
+  svc:   { subject: { id: robot, kind: service, roles: [user] }, agent: a }
+cases:
+  - { id: E1, title: overlapping globs merge scopes, as: u, action: { kind: tool, name: svc.read }, expect: { effect: allow } }
+  - { id: E2, title: wildcard role scope, as: adm, action: { kind: tool, name: svc.admin }, expect: { effect: allow } }
+  - { id: E3, title: user lacks admin scope, as: u, action: { kind: tool, name: svc.admin }, expect: { effect: deny, rule: scope.missing } }
+  - { id: E4, title: all and any pass, as: adm, action: { kind: tool, name: svc.write, args: { n: 5, label: ok/a/b, owner: adm } }, expect: { effect: allow } }
+  - { id: E5, title: max bound, as: adm, action: { kind: tool, name: svc.write, args: { n: 11, label: ok/a, owner: adm } }, expect: { effect: deny, rule: write-limits } }
+  - { id: E6, title: glob mismatch, as: adm, action: { kind: tool, name: svc.write, args: { n: 2, label: no/a, owner: adm } }, expect: { effect: deny, rule: write-limits } }
+  - { id: E7, title: any with literal list, as: adm, action: { kind: tool, name: svc.write, args: { n: 2, label: ok/x, owner: team } }, expect: { effect: allow } }
+  - { id: E8, title: any fails, as: adm, action: { kind: tool, name: svc.write, args: { n: 2, label: ok/x, owner: eve } }, expect: { effect: deny, rule: write-either } }
+  - { id: E9, title: depth-2 chain within limits, as: adm-c, action: { kind: tool, name: svc.read }, expect: { effect: allow } }
+  - { id: E10, title: chain intersects to read only, as: adm-c, action: { kind: tool, name: svc.write, args: { n: 2, label: ok/x, owner: adm } }, expect: { effect: deny, rule: scope.missing } }
+  - { id: E11, title: delegate b may write, as: adm-b, action: { kind: tool, name: svc.write, args: { n: 2, label: ok/x, owner: adm } }, expect: { effect: allow } }
+  - { id: E12, title: service subjects allowed here, as: svc, action: { kind: tool, name: svc.read }, expect: { effect: allow } }
+  - { id: E13, title: uri glob crosses segments, as: u, action: { kind: resource, name: "FILES://Shared/a/b.txt" }, expect: { effect: allow } }
+  - { id: E14, title: custom kind needs approval, as: ops, action: { kind: x-shell, name: shell.exec, args: { cmd: whoami } }, expect: { effect: require_approval, rule: shell-approval } }
+  - { id: E15, title: regex rejects injection, as: ops, action: { kind: x-shell, name: shell.exec, args: { cmd: "ls; rm -rf /" } }, expect: { effect: deny, rule: shell-allowlist } }
+  - id: E16
+    title: deeply nested args
+    as: u
+    action: { kind: tool, name: svc.read }
+    args_raw: '{"a":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}'
+    expect: { effect: deny, rule: normalize.args }
+  - { id: E17, title: fullwidth name folds to ascii, as: u, action: { kind: tool, name: "ｓｖｃ.read" }, expect: { effect: allow } }
+  - { id: E18, title: unknown custom kind, as: ops, action: { kind: x-other, name: shell.exec }, expect: { effect: deny, rule: catalog.untagged } }

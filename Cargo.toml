@@ -9,7 +9,7 @@ members = [
     "crates/agent-scope-eval",
     "crates/agent-scope-cli",
     "crates/agent-scope-testkit",
-    # "crates/agent-scope-wasm",
+    "crates/agent-scope-wasm",
 ]
 
 [workspace.package]
@@ -57,4 +57,15 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 tempfile = "3"
 
 [profile.release]
+# Handlers rely on unwinding: a panic becomes a deny, the process lives on.
 panic = "unwind"
+
+# Small WebAssembly build for the npm package:
+#   cargo build --profile wasm --target wasm32-unknown-unknown -p agent-scope-wasm
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

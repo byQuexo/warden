@@ -1,0 +1,10 @@
+version: 1
+tool:
+  svc.read:   { scopes: [svc:read] }
+  svc.write:  { scopes: [svc:write], sensitivity: write }
+  "svc.*":    { scopes: [svc:read], tags: [svc] }
+  svc.admin:  { scopes: [svc:read, svc:admin], sensitivity: write }
+resource:
+  "files://shared/**": { scopes: [files:read] }
+x-shell:
+  shell.exec: { scopes: [shell:exec], sensitivity: write, tags: [dangerous] }

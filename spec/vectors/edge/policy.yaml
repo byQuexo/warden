@@ -1,0 +1,24 @@
+version: 1
+model_messages: rule_id
+service_subjects: allow
+roles:
+  user:  [svc:read, files:read]
+  admin: ["svc:*", files:read, shell:exec]
+agents:
+  a: { max: ["svc:*", files:read], delegation: { may_delegate_to: [b] } }
+  b: { max: [svc:read, svc:write], delegation: { may_delegate_to: [c], max_depth: 1 } }
+  c: { max: [svc:read], delegation: { max_depth: 2 } }
+  ops: { max: [shell:exec] }
+rules:
+  - id: write-limits
+    match: { kind: tool, name: svc.write }
+    require: { all: [ { arg: n, min: 1, max: 10 }, { arg: label, glob: "ok/**" } ] }
+  - id: write-either
+    match: { kind: tool, name: svc.write }
+    require: { any: [ { arg: owner, equals: "{subject.id}" }, { arg: owner, in: [shared, team] } ] }
+  - id: shell-allowlist
+    match: { tag: dangerous }
+    require: { arg: cmd, regex: "^(ls|pwd|whoami)$" }
+  - id: shell-approval
+    match: { kind: x-shell }
+    approve_if: always

@@ -1,0 +1,13 @@
+# Conformance vectors. Every engine implementation (Rust, WASM/TypeScript) must produce
+# exactly the expected results. Paths are relative to the repository root.
+decision_suites:
+  - policy: examples/acme/policy.yaml
+    catalog: examples/acme/catalog.yaml
+    suite: examples/acme/eval/reference.yaml
+  - policy: examples/minimal/policy.yaml
+    catalog: examples/minimal/catalog.yaml
+    suite: examples/minimal/scenarios.yaml
+  - policy: spec/vectors/edge/policy.yaml
+    catalog: spec/vectors/edge/catalog.yaml
+    suite: spec/vectors/edge/cases.yaml
+token_vectors: spec/vectors/tokens.yaml
