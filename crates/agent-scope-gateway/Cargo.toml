@@ -1,0 +1,48 @@
+[package]
+name = "agent-scope-gateway"
+description = "Policy-enforcing MCP gateway: per-user tool visibility, call enforcement, approvals, pinning, audit."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "agent-scope-gateway"
+path = "src/main.rs"
+
+[dependencies]
+agent-scope-core.workspace = true
+agent-scope-identity.workspace = true
+agent-scope-audit.workspace = true
+agent-scope-mcp.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_norway.workspace = true
+thiserror.workspace = true
+axum.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+futures.workspace = true
+reqwest.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap.workspace = true
+hmac.workspace = true
+sha2.workspace = true
+hex.workspace = true
+chrono.workspace = true
+rand.workspace = true
+tower-http = { version = "0.6", features = ["catch-panic"] }
+
+[dev-dependencies]
+agent-scope-testkit.workspace = true
+tempfile.workspace = true
+base64.workspace = true
+ed25519-dalek.workspace = true
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

@@ -1,0 +1,21 @@
+[package]
+name = "agent-scope-mcp"
+description = "Model Context Protocol (Streamable HTTP) types and client used by the agent-scope gateway."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
