@@ -1,0 +1,16 @@
+# agent-scope-gateway --config gateway.yaml --dev
+listen: 127.0.0.1:8088
+admin_listen: 127.0.0.1:8089
+admin_token_env: AGENT_SCOPE_ADMIN_TOKEN
+public_url: http://127.0.0.1:8088/mcp
+identity: identity.yaml
+policy: { catalog: catalog.yaml, policy: policy.yaml, lock: catalog.lock }
+upstreams:
+  ticket: { url: http://127.0.0.1:9001/mcp }
+approval: { approver: deny-all }
+audit:
+  sinks:
+    - { type: jsonl, dir: audit, chain: minimal, checkpoint_key_env: AUDIT_SIGNING_KEY, checkpoint_every: 10 }
+    - { type: stdout }
+  hmac_key_env: AUDIT_HMAC_KEY
+kill_switch: { file: kill }

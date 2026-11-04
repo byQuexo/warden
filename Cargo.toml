@@ -6,8 +6,8 @@ members = [
     "crates/agent-scope-audit",
     "crates/agent-scope-mcp",
     "crates/agent-scope-gateway",
-    # "crates/agent-scope-eval",
-    # "crates/agent-scope-cli",
+    "crates/agent-scope-eval",
+    "crates/agent-scope-cli",
     "crates/agent-scope-testkit",
     # "crates/agent-scope-wasm",
 ]

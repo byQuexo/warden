@@ -1,0 +1,7 @@
+# Whom to trust and how to read their tokens. The dev STS issues Keycloak-shaped tokens.
+version: 1
+issuers:
+  - issuer: http://127.0.0.1:9400
+    audience: http://127.0.0.1:8088/mcp
+    algorithms: [ES256]
+    mapping: { preset: keycloak }

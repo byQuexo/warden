@@ -1,0 +1,9 @@
+suite: minimal
+principals:
+  vera: { subject: { id: vera, roles: [viewer] },  agent: helpdesk-bot }
+  sam:  { subject: { id: sam,  roles: [support] }, agent: helpdesk-bot }
+cases:
+  - { id: M1, title: Viewers cannot close tickets, as: vera, action: { kind: tool, name: ticket.close, args: { id: T-1 } }, expect: { effect: deny, rule: scope.missing, visible: false } }
+  - { id: M2, title: Support closes a ticket, as: sam, action: { kind: tool, name: ticket.close, args: { id: T-1 } }, expect: { effect: allow } }
+  - { id: M3, title: Injected id is rejected, as: sam, action: { kind: tool, name: ticket.close, args: { id: "T-1 OR 1=1" } }, expect: { effect: deny, rule: ticket-ids-only } }
+  - { id: M4, title: Everyone can list, as: vera, action: { kind: tool, name: ticket.list }, expect: { effect: allow } }

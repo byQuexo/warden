@@ -21,6 +21,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-scope-cli"
+version = "0.1.0"
+dependencies = [
+ "agent-scope-audit",
+ "agent-scope-core",
+ "agent-scope-eval",
+ "agent-scope-gateway",
+ "agent-scope-identity",
+ "agent-scope-mcp",
+ "agent-scope-testkit",
+ "axum",
+ "clap",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "tempfile",
+ "tokio",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "agent-scope-core"
 version = "0.1.0"
 dependencies = [
@@ -33,6 +55,17 @@ dependencies = [
  "sqlparser",
  "thiserror",
  "unicode-normalization",
+]
+
+[[package]]
+name = "agent-scope-eval"
+version = "0.1.0"
+dependencies = [
+ "agent-scope-core",
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "thiserror",
 ]
 
 [[package]]

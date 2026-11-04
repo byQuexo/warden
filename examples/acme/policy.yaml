@@ -27,7 +27,11 @@ agents:
     max: [crm:write, ticket:write]
     delegation: { max_depth: 2 }
   acme-finance-bot:
+    description: Finance assistant; the only agent that can move money.
     max: [crm:read, payments:write]
+  acme-ops:
+    description: IT operations agent; destructive actions always need approval.
+    max: [ticket:read, ticket:write, "docs:it", admin]
 
 rules:
   - id: salary-only-own-unit

@@ -1,0 +1,12 @@
+# Who may do what. Scopes grant, rules only restrict.
+version: 1
+roles:
+  viewer:  [ticket:read]
+  support: [ticket:read, ticket:write]
+agents:
+  helpdesk-bot: { max: [ticket:read, ticket:write] }
+rules:
+  - id: ticket-ids-only
+    description: The model may only pass real ticket ids, nothing else.
+    match: { kind: tool, name: ticket.close }
+    require: { arg: id, regex: "^T-[0-9]{1,8}$" }

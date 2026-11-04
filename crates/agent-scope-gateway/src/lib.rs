@@ -45,6 +45,20 @@ impl Gateway {
             .with_state(self.clone())
     }
 
+    /// Current tool definitions of every upstream (for `agent-scope catalog pull/accept`).
+    pub async fn upstream_tools(&self, subject_token: Option<&str>) -> std::collections::BTreeMap<String, Result<Vec<serde_json::Value>, String>> {
+        let mut out = std::collections::BTreeMap::new();
+        for (name, up) in &self.upstreams {
+            let r = async {
+                let cred = up.auth.credential(&self.http, &self.token_cache, subject_token.unwrap_or(""), agent_scope_identity::now_unix()).await?;
+                self.definitions(up, cred.as_deref(), true).await
+            }
+            .await;
+            out.insert(name.clone(), r);
+        }
+        out
+    }
+
     pub fn admin_router(&self) -> Router {
         admin::router(self.clone())
     }

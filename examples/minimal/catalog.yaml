@@ -1,0 +1,5 @@
+# What exists and how risky it is. Anything not listed is denied.
+version: 1
+tool:
+  ticket.list:  { scopes: [ticket:read],  sensitivity: read }
+  ticket.close: { scopes: [ticket:write], sensitivity: write }

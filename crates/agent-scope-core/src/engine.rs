@@ -61,6 +61,14 @@ pub struct CompiledRule {
 }
 
 impl CompiledRule {
+    /// Does this rule apply to the (normalized) action?
+    pub fn applies_to(&self, catalog: &Catalog, kind: &ActionKind, name: &str) -> bool {
+        match catalog.resolve(kind, name) {
+            Some(r) => self.applies(kind, name, catalog.normalize_mode(kind), &r),
+            None => false,
+        }
+    }
+
     fn applies(&self, kind: &ActionKind, name: &str, mode: NormalizeMode, r: &Resolved) -> bool {
         let m = &self.matcher;
         if m.kind.as_ref().is_some_and(|k| k != kind) {

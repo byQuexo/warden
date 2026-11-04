@@ -1,0 +1,82 @@
+# Acme reference suite: hand-written scenarios for examples/acme/policy.yaml.
+# These files double as Rust <-> TypeScript conformance vectors.
+suite: acme-reference
+description: Visibility, argument rules, approvals, delegation and controls for the Acme demo company.
+
+principals:
+  hanna:  { subject: { id: hanna,  roles: [hr-member],  attrs: { org_unit: hr } },  agent: acme-bot }
+  henrik: { subject: { id: henrik, roles: [hr-lead],    attrs: { org_unit: hr } },  agent: acme-bot }
+  sven:   { subject: { id: sven,   roles: [sales-rep],  attrs: { tenants: [dach] } }, agent: acme-bot }
+  sara:   { subject: { id: sara,   roles: [sales-lead], attrs: { tenants: [dach, enterprise] } }, agent: acme-bot }
+  sara-research: { subject: { id: sara, roles: [sales-lead], attrs: { tenants: [dach, enterprise] } }, agent: acme-research }
+  fiona:  { subject: { id: fiona,  roles: [finance] }, agent: acme-finance-bot }
+  ines:   { subject: { id: ines,   roles: [it-admin] }, agent: acme-ops }
+  sven-via-action:   { subject: { id: sven, roles: [sales-rep], attrs: { tenants: [dach] } }, agent: acme-action, act: [acme-bot] }
+  sven-via-research: { subject: { id: sven, roles: [sales-rep], attrs: { tenants: [dach] } }, agent: acme-action, act: [acme-bot, acme-research] }
+  sven-reversed:     { subject: { id: sven, roles: [sales-rep], attrs: { tenants: [dach] } }, agent: acme-bot, act: [acme-action] }
+  sven-narrow-token: { subject: { id: sven, roles: [sales-rep], attrs: { tenants: [dach] } }, agent: acme-bot, token_scopes: [crm:read] }
+  rogue:   { subject: { id: sven, roles: [sales-rep] }, agent: rogue-bot }
+  service: { subject: { id: svc, kind: service, roles: [sales-rep] }, agent: acme-bot }
+
+cases:
+  # Visibility
+  - { id: V1, title: HR member cannot see salaries, as: hanna, action: { kind: tool, name: hr.get_salary, args: { unit: hr } }, expect: { effect: deny, rule: scope.missing, visible: false } }
+  - { id: V1b, title: HR member searches the directory, as: hanna, action: { kind: tool, name: hr.search_employees, args: { query: x } }, expect: { effect: allow, visible: true } }
+  - { id: V3, title: Sales cannot read IT docs, as: sven, action: { kind: resource, name: "docs://it/runbook.md" }, expect: { effect: deny, rule: scope.missing, visible: false } }
+  - { id: V3b, title: Sales reads the sales playbook, as: sven, action: { kind: resource, name: "docs://sales/playbook.md" }, expect: { effect: allow } }
+  - { id: V4, title: Path traversal into IT docs, as: sven, action: { kind: resource, name: "docs://sales/../it/runbook.md" }, expect: { effect: deny, rule: normalize.uri } }
+  - { id: V4b, title: Encoded traversal, as: sven, action: { kind: resource, name: "docs://sales/%2e%2e/it/runbook.md" }, expect: { effect: deny, rule: normalize.uri } }
+  - { id: V5, title: Prompts follow the same scopes, as: sven, action: { kind: prompt, name: crm.summarize_deal }, expect: { effect: allow } }
+
+  # Arguments
+  - { id: A1, title: HR lead asks for another unit, as: henrik, action: { kind: tool, name: hr.get_salary, args: { unit: sales } }, expect: { effect: deny, rule: salary-only-own-unit, visible: true } }
+  - { id: A1b, title: HR lead asks for own unit, as: henrik, action: { kind: tool, name: hr.get_salary, args: { unit: hr } }, expect: { effect: allow } }
+  - { id: A2, title: Sales rep reads another tenant, as: sven, action: { kind: tool, name: crm.list_deals, args: { tenant: enterprise } }, expect: { effect: deny, rule: tenant-pinning } }
+  - { id: A2b, title: Sales rep reads own tenant, as: sven, action: { kind: tool, name: crm.list_deals, args: { tenant: dach } }, expect: { effect: allow } }
+  - { id: A2c, title: Sales lead reads both tenants, as: sara, action: { kind: tool, name: crm.list_deals, args: { tenant: enterprise } }, expect: { effect: allow } }
+  - { id: A2d, title: Sales rep cannot export, as: sven, action: { kind: tool, name: crm.export_deals, args: { tenant: dach } }, expect: { effect: deny, rule: scope.missing } }
+  - { id: A2e, title: The bot may not export even for a lead, as: sara, action: { kind: tool, name: crm.export_deals, args: { tenant: dach } }, expect: { effect: deny, rule: scope.missing } }
+  - { id: A2f, title: Update into a foreign tenant, as: sven, action: { kind: tool, name: crm.update_deal, args: { tenant: enterprise, deal_id: d-1, amount: 10 } }, expect: { effect: deny, rule: update-tenant-pinning } }
+  - { id: A3, title: Stacked SQL statement, as: sven, action: { kind: tool, name: crm.query, args: { sql: "SELECT * FROM deals; DROP TABLE accounts" } }, expect: { effect: deny, rule: read-only-sql } }
+  - { id: A3b, title: Subquery into a foreign table, as: sven, action: { kind: tool, name: crm.query, args: { sql: "SELECT * FROM deals WHERE id IN (SELECT id FROM users)" } }, expect: { effect: deny, rule: read-only-sql } }
+  - { id: A3c, title: Plain read-only query, as: sven, action: { kind: tool, name: crm.query, args: { sql: "SELECT id, amount FROM deals" } }, expect: { effect: allow } }
+  - { id: A5, title: Big deal needs approval, as: sven, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: 80000 } }, expect: { effect: require_approval, rule: big-deals-need-approval } }
+  - { id: A5b, title: Small deal goes through, as: sven, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: 100 } }, expect: { effect: allow } }
+  - { id: A5c, title: Negative amount, as: sven, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: -5 } }, expect: { effect: deny, rule: deal-amount-is-sane } }
+  - { id: A6, title: A missing amount does not skip the approval, as: sven, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1 } }, expect: { effect: deny } }
+  - { id: A6b, title: Amount as string, as: sven, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: "80000" } }, expect: { effect: deny } }
+  - { id: A6c, title: Amount in exponent notation, as: sven, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: 8.0e+4 } }, expect: { effect: require_approval } }
+  - id: A7
+    title: Duplicate JSON keys
+    as: sven
+    action: { kind: tool, name: crm.list_deals }
+    args_raw: '{"tenant":"dach","tenant":"enterprise"}'
+    expect: { effect: deny, rule: normalize.args }
+  - { id: A8, title: Zero-width space in tenant, as: sven, action: { kind: tool, name: crm.list_deals, args: { tenant: "dach​" } }, expect: { effect: deny, rule: tenant-pinning } }
+
+  # Delegation
+  - { id: D1, title: Chain through a read-only agent cannot write, as: sven-via-research, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: 10 } }, expect: { effect: deny, rule: scope.missing } }
+  - { id: D1b, title: Bot hands a write to the action agent, as: sven-via-action, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: 10 } }, expect: { effect: allow } }
+  - { id: D2, title: Delegation edge not allowed, as: sven-reversed, action: { kind: tool, name: crm.list_deals, args: { tenant: dach } }, expect: { effect: deny, rule: principal.delegation } }
+  - { id: D4, title: A2A skill needs the research scope, as: sara-research, action: { kind: a2a_skill, name: research.deep_search, args: { q: pipeline } }, expect: { effect: allow } }
+
+  # Principal and token
+  - { id: T7, title: Token scopes narrow the user, as: sven-narrow-token, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: 10 } }, expect: { effect: deny, rule: scope.missing } }
+  - { id: T8, title: Unknown agent, as: rogue, action: { kind: tool, name: crm.list_deals, args: { tenant: dach } }, expect: { effect: deny, rule: principal.unknown_agent } }
+  - { id: T9, title: Service tokens may not act, as: service, action: { kind: tool, name: crm.list_deals, args: { tenant: dach } }, expect: { effect: deny, rule: principal.service_subject } }
+
+  # Catalog and names
+  - { id: I3, title: Homoglyph tool name, as: sven, action: { kind: tool, name: "crm.updаte_deal", args: {} }, expect: { effect: deny, rule: normalize.name } }
+  - { id: I6, title: Unknown tool, as: sven, action: { kind: tool, name: crm.drop_everything, args: {} }, expect: { effect: deny, rule: catalog.untagged } }
+  - { id: I7, title: Destructive tools always need approval, as: ines, action: { kind: tool, name: ticket.delete_ticket, args: { id: t-1 } }, expect: { effect: require_approval, rule: destructive-always-approval } }
+
+  # Custom action kind with context rules
+  - { id: X1, title: Small payment in business hours, as: fiona, action: { kind: x-payment, name: payments.transfer, args: { amount: 500 } }, context: { values: { hour_utc: 10 } }, expect: { effect: allow } }
+  - { id: X2, title: Payment at night, as: fiona, action: { kind: x-payment, name: payments.transfer, args: { amount: 500 } }, context: { values: { hour_utc: 22 } }, expect: { effect: deny, rule: payments-business-hours } }
+  - { id: X3, title: Large payment needs approval, as: fiona, action: { kind: x-payment, name: payments.transfer, args: { amount: 5000 } }, context: { values: { hour_utc: 10 } }, expect: { effect: require_approval, rule: payments-approval } }
+  - { id: X4, title: "No clock, no payment", as: fiona, action: { kind: x-payment, name: payments.transfer, args: { amount: 500 } }, expect: { effect: deny, rule: payments-business-hours } }
+
+  # Controls
+  - { id: C1, title: Kill switch blocks writes, as: sven, action: { kind: tool, name: crm.update_deal, args: { tenant: dach, deal_id: d-1, amount: 10 } }, context: { kill_switch: writes }, expect: { effect: deny, rule: kill_switch, visible: false } }
+  - { id: C1b, title: Kill switch keeps reads, as: sven, action: { kind: tool, name: crm.list_deals, args: { tenant: dach } }, context: { kill_switch: writes }, expect: { effect: allow } }
+  - { id: C1c, title: Kill switch all, as: sven, action: { kind: tool, name: crm.list_deals, args: { tenant: dach } }, context: { kill_switch: all }, expect: { effect: deny, rule: kill_switch } }

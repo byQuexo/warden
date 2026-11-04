@@ -1,0 +1,33 @@
+[package]
+name = "agent-scope-cli"
+description = "agent-scope command line: lint, explain, eval, audit verify, catalog pinning, dev STS, demo."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "agent-scope"
+path = "src/main.rs"
+
+[dependencies]
+agent-scope-core.workspace = true
+agent-scope-identity.workspace = true
+agent-scope-audit.workspace = true
+agent-scope-mcp.workspace = true
+agent-scope-gateway.workspace = true
+agent-scope-eval.workspace = true
+agent-scope-testkit.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_norway.workspace = true
+clap.workspace = true
+tokio.workspace = true
+axum.workspace = true
+reqwest.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
