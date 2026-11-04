@@ -10,6 +10,8 @@ members = [
     "crates/agent-scope-cli",
     "crates/agent-scope-testkit",
     "crates/agent-scope-wasm",
+    "crates/agent-scope-rig",
+    "crates/agent-scope-a2a",
 ]
 
 [workspace.package]
@@ -28,6 +30,7 @@ agent-scope-mcp = { path = "crates/agent-scope-mcp" }
 agent-scope-gateway = { path = "crates/agent-scope-gateway" }
 agent-scope-eval = { path = "crates/agent-scope-eval" }
 agent-scope-testkit = { path = "crates/agent-scope-testkit" }
+agent-scope-rig = { path = "crates/agent-scope-rig" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -1,0 +1,28 @@
+[package]
+name = "agent-scope-a2a"
+description = "agent-scope for the Agent2Agent (A2A) protocol: per-caller skill filtering of agent cards and enforcement of message/task calls."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+agent-scope-core.workspace = true
+agent-scope-identity.workspace = true
+agent-scope-audit.workspace = true
+agent-scope-mcp.workspace = true
+serde_json.workspace = true
+axum.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+agent-scope-testkit.workspace = true
+tokio.workspace = true
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
