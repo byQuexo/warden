@@ -1,0 +1,10 @@
+# Keycloak access tokens (realm roles, space-separated scopes).
+# Add your own user attributes via `mapping: { preset: keycloak, attrs: { … } }`.
+subject: /sub
+agent: /azp
+roles: /realm_access/roles
+scopes: { path: /scope, split: " " }
+act: /act
+# Keycloak marks access tokens with `typ: Bearer` (ID tokens carry `typ: ID`).
+token_type: { path: /typ, equals: Bearer }
+service_if: { path: /preferred_username, prefix: "service-account-" }

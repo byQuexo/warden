@@ -1,0 +1,29 @@
+# Acme reference catalog. Names are namespaced by the gateway: <upstream>.<tool>.
+# Anything not listed here (or listed without scopes) is denied.
+version: 1
+
+tool:
+  hr.search_employees:  { scopes: [hr:read],      sensitivity: read }
+  hr.get_salary:        { scopes: [hr:salary],    sensitivity: read,  tags: [pii] }
+  crm.list_deals:       { scopes: [crm:read],     sensitivity: read }
+  crm.update_deal:      { scopes: [crm:write],    sensitivity: write }
+  crm.export_deals:     { scopes: [crm:export],   sensitivity: read,  tags: [bulk] }
+  crm.query:            { scopes: [crm:read],     sensitivity: read }
+  ticket.list:          { scopes: [ticket:read],  sensitivity: read }
+  ticket.close:         { scopes: [ticket:write], sensitivity: write }
+  "*.delete_*":         { scopes: [admin],        sensitivity: write, tags: [destructive] }
+
+resource:
+  "docs://hr/**":       { scopes: [docs:hr] }
+  "docs://it/**":       { scopes: [docs:it] }
+  "docs://sales/**":    { scopes: [docs:sales] }
+
+prompt:
+  "crm.*":              { scopes: [crm:read] }
+
+a2a_skill:
+  research.deep_search: { scopes: [research] }
+
+# A custom action kind: payments are not an MCP concept, the engine does not care.
+x-payment:
+  payments.transfer:    { scopes: [payments:write], sensitivity: write, tags: [financial] }

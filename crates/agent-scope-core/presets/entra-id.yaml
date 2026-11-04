@@ -1,0 +1,8 @@
+# Microsoft Entra ID v2.0 access tokens. App roles arrive in `roles`, delegated scopes in `scp`.
+# `oid` is the stable object id of the user; app-only tokens carry `idtyp: app`.
+subject: [/oid, /sub]
+agent: [/azp, /appid]
+roles: /roles
+scopes: { path: /scp, split: " " }
+act: /act
+service_if: { path: /idtyp, equals: app }

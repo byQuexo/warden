@@ -1,0 +1,8 @@
+# Okta custom authorization server access tokens. Groups need a `groups` claim configured
+# on the authorization server; `scp` is already an array. Client-credentials tokens have sub == cid.
+subject: /sub
+agent: /cid
+roles: /groups
+scopes: /scp
+act: /act
+service_if: { path: /sub, same_as: /cid }

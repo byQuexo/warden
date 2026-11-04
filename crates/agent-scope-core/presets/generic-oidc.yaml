@@ -1,0 +1,6 @@
+# Plain OIDC/OAuth 2.0 access token (RFC 9068 style claims).
+subject: /sub
+agent: [/azp, /client_id]
+roles: /roles
+scopes: { path: /scope, split: " " }
+act: /act

@@ -1,0 +1,60 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/agent-scope-core",
+    "crates/agent-scope-identity",
+    "crates/agent-scope-audit",
+    # "crates/agent-scope-mcp",
+    # "crates/agent-scope-gateway",
+    # "crates/agent-scope-eval",
+    # "crates/agent-scope-cli",
+    # "crates/agent-scope-testkit",
+    # "crates/agent-scope-wasm",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/byQuexo/agent-scope"
+authors = ["Tim Gühnemann"]
+
+[workspace.dependencies]
+agent-scope-core = { path = "crates/agent-scope-core" }
+agent-scope-identity = { path = "crates/agent-scope-identity" }
+agent-scope-audit = { path = "crates/agent-scope-audit" }
+agent-scope-mcp = { path = "crates/agent-scope-mcp" }
+agent-scope-gateway = { path = "crates/agent-scope-gateway" }
+agent-scope-eval = { path = "crates/agent-scope-eval" }
+agent-scope-testkit = { path = "crates/agent-scope-testkit" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_norway = "0.9"
+thiserror = "2"
+sha2 = "0.10"
+hex = "0.4"
+regex = "1"
+sqlparser = { version = "0.63", features = ["visitor"] }
+unicode-normalization = "0.1"
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+jsonwebtoken = "9"
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "pem"] }
+rand = "0.8"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+hmac = "0.12"
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+async-trait = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+futures = "0.3"
+tokio-stream = { version = "0.1", features = ["sync"] }
+tempfile = "3"
+
+[profile.release]
+panic = "unwind"

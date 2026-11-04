@@ -1,0 +1,69 @@
+# Acme reference policy. Scopes grant, rules only restrict.
+version: 1
+defaults: { effect: deny }
+model_messages: generic
+service_subjects: deny
+
+roles:
+  hr-member:   [hr:read, "docs:hr"]
+  hr-lead:     [hr:read, hr:salary, "docs:hr"]
+  it-member:   [ticket:read, ticket:write, "docs:it"]
+  it-admin:    [ticket:read, ticket:write, "docs:it", admin]
+  sales-rep:   [crm:read, crm:write, "docs:sales"]
+  sales-lead:  [crm:read, crm:write, crm:export, "docs:sales", research]
+  finance:     [crm:read, crm:export, payments:write]
+
+agents:
+  acme-bot:
+    description: Company assistant, talks to users directly.
+    max: [hr:read, hr:salary, crm:read, crm:write, ticket:read, ticket:write, "docs:*"]
+    delegation: { may_delegate_to: [acme-research, acme-action] }
+  acme-research:
+    description: Read-only research sub-agent.
+    max: ["docs:*", crm:read, research]
+    delegation: { may_delegate_to: [acme-action], max_depth: 1 }
+  acme-action:
+    description: Executes changes on behalf of other agents.
+    max: [crm:write, ticket:write]
+    delegation: { max_depth: 2 }
+  acme-finance-bot:
+    max: [crm:read, payments:write]
+
+rules:
+  - id: salary-only-own-unit
+    description: HR leads see salaries of their own org unit only.
+    match: { kind: tool, name: hr.get_salary }
+    require: { arg: unit, equals: "{subject.attrs.org_unit}" }
+
+  - id: big-deals-need-approval
+    match: { kind: tool, name: crm.update_deal }
+    approve_if: { arg: amount, min: 50000 }
+
+  - id: deal-amount-is-sane
+    match: { kind: tool, name: crm.update_deal }
+    require: { arg: amount, min: 0, max: 100000000 }
+
+  - id: tenant-pinning
+    description: Sales staff only touch deals of their own tenants.
+    match: { kind: tool, name: "crm.*_deals" }
+    require: { arg: tenant, in: "{subject.attrs.tenants}" }
+
+  - id: update-tenant-pinning
+    match: { kind: tool, name: crm.update_deal }
+    require: { arg: tenant, in: "{subject.attrs.tenants}" }
+
+  - id: read-only-sql
+    match: { kind: tool, name: "*.query" }
+    require: { arg: sql, sql: { dialect: postgres, tables_allow: [deals, accounts] } }
+
+  - id: destructive-always-approval
+    match: { tag: destructive }
+    approve_if: always
+
+  - id: payments-business-hours
+    match: { kind: x-payment }
+    deny_if: { context: hour_utc, not_in_range: [7, 19] }
+
+  - id: payments-approval
+    match: { tag: financial }
+    approve_if: { arg: amount, min: 1000 }

@@ -1,0 +1,25 @@
+[package]
+name = "agent-scope-core"
+description = "Pure, I/O-free authorization engine for AI agents: scopes, delegation chains, argument constraints, explainable decisions."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+serde_norway.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+hex.workspace = true
+regex.workspace = true
+sqlparser.workspace = true
+unicode-normalization.workspace = true
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

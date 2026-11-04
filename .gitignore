@@ -1,0 +1,7 @@
+/target
+node_modules/
+packages/agent-scope/dist/
+packages/agent-scope/wasm/
+*.log
+.env
+audit-out/
