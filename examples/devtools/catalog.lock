@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "pins": {
+    "tool": {
+      "github.create_issue": "sha256:e71f7088ee0ae03129b5366b82c4a1016293122ff22b0c34634fecc4a3b63bf7",
+      "github.delete_repo": "sha256:40f7585743b584555437b7e7d3c722c314ecb5780c038681774601b86337a569",
+      "github.list_issues": "sha256:40f7daf330b3fcace574bd7a94600d945942fcf05aec749810cffefe6c7bbe8f",
+      "github.merge_pull_request": "sha256:903750089ddda631d4e7a269478f93abb6312ce91dbe6fdae6b3494e36aa0e5b",
+      "postgres.query": "sha256:1c63c04ab9a4aa284eb99742009b2219901b4ee1de509823f263e00a033f44f1",
+      "slack.post_message": "sha256:73679332da86671c3609beed13f7b0472d0dffc02f04f03f15c9cde3c8184ec9"
+    }
+  }
+}

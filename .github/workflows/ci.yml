@@ -36,9 +36,15 @@ jobs:
       - run: cargo build --release --locked -p warden-cli
       - name: Lint example policies (warnings are errors)
         run: |
+          (cd examples/devtools && ../../target/release/warden lint --strict)
           (cd examples/acme && ../../target/release/warden lint --strict)
           (cd examples/minimal && ../../target/release/warden lint --strict)
-      - name: Reference suite + generated attacks + mutation testing
+      - name: Devtools suite + generated attacks + mutation testing
+        working-directory: examples/devtools
+        run: |
+          ../../target/release/warden eval --suite eval/reference.yaml --generate --mutate --coverage --gate | tee -a "$GITHUB_STEP_SUMMARY"
+          ../../target/release/warden bench --suite eval/reference.yaml | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Acme suite + generated attacks + mutation testing
         working-directory: examples/acme
         run: |
           ../../target/release/warden eval --suite eval/reference.yaml --generate --mutate --coverage \

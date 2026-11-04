@@ -1,0 +1,52 @@
+# Reference scenarios for examples/devtools. CI requires every case to pass, every rule to be
+# covered and every rule removal ("mutant") to be caught by at least one case.
+suite: devtools
+description: Coding agents on GitHub, Postgres, Slack and workspace files.
+
+principals:
+  vic:  { subject: { id: vic,  roles: [viewer],     attrs: { orgs: [acme-dev], channels: [] } }, agent: coding-agent }
+  dana: { subject: { id: dana, roles: [developer],  attrs: { orgs: [acme-dev], channels: [eng] } }, agent: coding-agent }
+  mo:   { subject: { id: mo,   roles: [maintainer], attrs: { orgs: [acme-dev], channels: [eng, ops] } }, agent: coding-agent }
+  mo-ops: { subject: { id: mo, roles: [maintainer], attrs: { orgs: [acme-dev], channels: [eng, ops] } }, agent: ops-agent }
+  dana-review: { subject: { id: dana, roles: [developer], attrs: { orgs: [acme-dev] } }, agent: review-agent, act: [coding-agent] }
+
+cases:
+  # What each principal can see
+  - { id: V1, title: Viewers cannot write, as: vic, action: { kind: tool, name: github.create_issue, args: { owner: acme-dev, repo: api, title: x } }, expect: { effect: deny, rule: scope.missing, visible: false } }
+  - { id: V2, title: Developers open issues in their org, as: dana, action: { kind: tool, name: github.create_issue, args: { owner: acme-dev, repo: api, title: Flaky test } }, expect: { effect: allow, visible: true } }
+  - { id: V3, title: The coding agent never deletes repos - not even for a maintainer, as: mo, action: { kind: tool, name: github.delete_repo, args: { owner: acme-dev, repo: api } }, expect: { effect: deny, rule: scope.missing, visible: false } }
+  - { id: V4, title: The coding agent cannot post to Slack, as: dana, action: { kind: tool, name: slack.post_message, args: { channel: eng, text: hi } }, expect: { effect: deny, rule: scope.missing } }
+
+  # Arguments
+  - { id: A1, title: Issues in a foreign org, as: dana, action: { kind: tool, name: github.create_issue, args: { owner: someone-else, repo: api, title: x } }, expect: { effect: deny, rule: own-orgs-only, visible: true } }
+  - { id: A2, title: Owner missing, as: dana, action: { kind: tool, name: github.list_issues, args: { repo: api } }, expect: { effect: deny, rule: own-orgs-only } }
+  - { id: A3, title: Look-alike org name with zero-width space, as: dana, action: { kind: tool, name: github.list_issues, args: { owner: "acme-dev​", repo: api } }, expect: { effect: deny, rule: own-orgs-only } }
+  - { id: A4, title: Read-only query on allowed tables, as: dana, action: { kind: tool, name: postgres.query, args: { sql: "SELECT status, count(*) FROM deployments GROUP BY status" } }, expect: { effect: allow } }
+  - { id: A5, title: Stacked DROP, as: dana, action: { kind: tool, name: postgres.query, args: { sql: "SELECT * FROM issues; DROP TABLE deployments" } }, expect: { effect: deny, rule: read-only-sql } }
+  - { id: A6, title: Reading the users table, as: dana, action: { kind: tool, name: postgres.query, args: { sql: "SELECT email, password_hash FROM users" } }, expect: { effect: deny, rule: read-only-sql } }
+  - id: A7
+    title: Duplicate JSON keys
+    as: dana
+    action: { kind: tool, name: github.list_issues }
+    args_raw: '{"owner":"acme-dev","owner":"someone-else","repo":"api"}'
+    expect: { effect: deny, rule: normalize.args }
+
+  # Approvals
+  - { id: P1, title: Merging needs a human, as: dana, action: { kind: tool, name: github.merge_pull_request, args: { owner: acme-dev, repo: api, number: 42 } }, expect: { effect: require_approval, rule: merges-need-approval } }
+  - { id: P2, title: Maintainers delete repos only with approval, as: mo-ops, action: { kind: tool, name: github.delete_repo, args: { owner: acme-dev, repo: old } }, expect: { effect: require_approval, rule: destructive-needs-approval } }
+  - { id: P3, title: Maintainers post to their channels, as: mo-ops, action: { kind: tool, name: slack.post_message, args: { channel: ops, text: deploy done } }, expect: { effect: allow } }
+  - { id: P4, title: Not to other channels, as: mo-ops, action: { kind: tool, name: slack.post_message, args: { channel: general, text: hi } }, expect: { effect: deny, rule: own-channels-only } }
+
+  # Delegation
+  - { id: D1, title: The reviewer reads, as: dana-review, action: { kind: tool, name: github.list_issues, args: { owner: acme-dev, repo: api } }, expect: { effect: allow } }
+  - { id: D2, title: "The reviewer cannot write, even via the coding agent", as: dana-review, action: { kind: tool, name: github.create_issue, args: { owner: acme-dev, repo: api, title: x } }, expect: { effect: deny, rule: scope.missing } }
+
+  # Files
+  - { id: F1, title: Workspace files are readable, as: dana, action: { kind: resource, name: "file:///workspace/src/main.rs" }, expect: { effect: allow } }
+  - { id: F2, title: Secrets are not, as: dana, action: { kind: resource, name: "file:///workspace/.env" }, expect: { effect: deny, rule: scope.missing, visible: false } }
+  - { id: F3, title: And the coding agent never reads them, as: mo, action: { kind: resource, name: "file:///workspace/.env" }, expect: { effect: deny, rule: scope.missing } }
+  - { id: F4, title: Path traversal, as: dana, action: { kind: resource, name: "file:///workspace/../etc/passwd" }, expect: { effect: deny, rule: normalize.uri } }
+
+  # Controls
+  - { id: C1, title: Kill switch blocks writes, as: dana, action: { kind: tool, name: github.create_issue, args: { owner: acme-dev, repo: api, title: x } }, context: { kill_switch: writes }, expect: { effect: deny, rule: kill_switch } }
+  - { id: C2, title: Homoglyph tool name, as: dana, action: { kind: tool, name: "github.deletе_repo", args: {} }, expect: { effect: deny, rule: normalize.name } }

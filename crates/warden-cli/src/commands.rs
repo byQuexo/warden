@@ -186,8 +186,19 @@ pub fn audit_verify(dir: &Path, pubkey: Option<&str>, max_unanchored: u64) -> Re
 }
 
 async fn gateway_from(path: &Path, dev: bool) -> Result<warden_gateway::Gateway, String> {
-    let (cfg, base) = GatewayConfig::from_file(path).map_err(|e| e.to_string())?;
-    Ok(cfg.load(&base, dev).map_err(|e| e.to_string())?.gateway)
+    let (mut cfg, base) = GatewayConfig::from_file(path).map_err(|e| e.to_string())?;
+    // Catalog commands only talk to upstreams: serving-only secrets are not needed.
+    cfg.admin_token_env = None;
+    cfg.attributes = None;
+    cfg.kill_switch = None;
+    cfg.approval = warden_gateway::config::ApprovalCfg::default();
+    cfg.audit = warden_gateway::config::AuditCfg {
+        sinks: vec![warden_gateway::config::SinkCfg::Tracing],
+        hmac_key_env: None,
+        on_sink_error: "deny".into(),
+    };
+    let _ = dev;
+    Ok(cfg.load(&base, true).map_err(|e| e.to_string())?.gateway)
 }
 
 /// namespaced name → (hash, definition)
@@ -340,5 +351,33 @@ pub fn dev_token(
     let roles: Vec<&str> = roles.iter().map(String::as_str).collect();
     let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
     println!("{}", sts.user_token(subject, agent, &roles, json_arg(attrs)?, audience, &scopes, ttl)?);
+    Ok(0)
+}
+
+/// Time `engine.check` over every case of the given suites, round-robin.
+pub fn bench(f: &PolicyArgs, suites: &[PathBuf], decisions: usize) -> Result<i32, String> {
+    let engine = load_engine(f)?;
+    let mut work: Vec<(Principal, Action, Context)> = Vec::new();
+    for path in suites {
+        let suite = Suite::load(path)?;
+        for c in &suite.cases {
+            let Some(p) = c.principal.clone().or_else(|| c.as_.as_ref().and_then(|n| suite.principals.get(n).cloned())) else { continue };
+            work.push((p, c.action.clone(), c.context.clone().unwrap_or_default()));
+        }
+    }
+    if work.is_empty() {
+        return Err("no cases to time; pass --suite".into());
+    }
+    let mut times = Vec::with_capacity(decisions);
+    for i in 0..decisions {
+        let (p, a, ctx) = &work[i % work.len()];
+        let t = std::time::Instant::now();
+        std::hint::black_box(engine.check(p, a, ctx));
+        times.push(t.elapsed().as_nanos() as u64);
+    }
+    times.sort_unstable();
+    let pct = |q: f64| times[((times.len() - 1) as f64 * q) as usize] as f64 / 1000.0;
+    println!("{} decisions over {} distinct cases", decisions, work.len());
+    println!("p50 {:.1} µs   p99 {:.1} µs   max {:.1} µs", pct(0.5), pct(0.99), pct(1.0));
     Ok(0)
 }

@@ -1,0 +1,9 @@
+# Trust the local dev token service (warden dev sts). Swap in your IdP: Keycloak, Auth0,
+# Entra ID, Okta or any OIDC provider - only this file changes.
+version: 1
+issuers:
+  - issuer: http://127.0.0.1:9400
+    audience: http://127.0.0.1:8088/mcp
+    algorithms: [ES256]
+    mapping: { preset: keycloak, attrs: { orgs: /orgs, channels: /channels } }
+scope_claim: ignore

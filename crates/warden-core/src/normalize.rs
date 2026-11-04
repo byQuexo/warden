@@ -56,7 +56,8 @@ pub fn normalize_uri(raw: &str) -> Result<String, NormalizeError> {
         Some((a, p)) => (a.to_string(), Some(p.to_string())),
         None => (decoded.clone(), None),
     };
-    if authority.is_empty() {
+    // `file:///path` has an empty authority; anything else needs one.
+    if authority.is_empty() && path.is_none() {
         return Err(bad());
     }
     let mut out = format!("{}://{}", scheme.to_ascii_lowercase(), authority.to_lowercase());
@@ -131,6 +132,9 @@ mod tests {
         assert!(normalize_uri("docs://sales\\..\\it").is_err());
         assert!(normalize_uri("no-scheme").is_err());
         assert_eq!(normalize_uri("docs://hr/a%20b").as_deref(), Ok("docs://hr/a b"));
+        assert_eq!(normalize_uri("file:///workspace/.env").as_deref(), Ok("file:///workspace/.env"));
+        assert!(normalize_uri("file:///workspace/../etc/passwd").is_err());
+        assert!(normalize_uri("file://").is_err());
     }
 
     #[test]

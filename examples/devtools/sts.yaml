@@ -1,0 +1,5 @@
+# Local dev token service. Never use in production.
+issuer: http://127.0.0.1:9400
+key_file: sts-key.pem
+clients:
+  coding-agent: { secret: dev-secret }

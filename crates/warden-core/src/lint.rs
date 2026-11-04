@@ -124,7 +124,7 @@ pub fn lint(
                 }
             }
             for other in section.entries.keys() {
-                if other != pattern && glob::is_glob(other) && glob::matches(other, pattern, sep) {
+                if other != pattern && glob::is_glob(other) && glob::is_glob(pattern) && glob::matches(other, pattern, sep) {
                     f.push(Finding::warning(
                         "catalog.overlap",
                         format!("{kind} `{pattern}` also matches `{other}`; scopes and tags of both apply"),

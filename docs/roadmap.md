@@ -16,6 +16,8 @@ in production. The original design document (German) is in [design/plan-de.md](d
   hot reload, admin API, RFC 9728 metadata, `list_changed` notifications
 * Tamper-evident audit (hash chain, HMAC'd arguments, Ed25519 checkpoints) and verifier
 * Security eval: scenario runner, generated attacks, mutation testing, coverage, baselines, CI gates
+* rig adapter (`ScopeHook`) and A2A proxy (per-caller agent cards, skill enforcement, task ownership)
+* `warden bench` for decision latency; `examples/devtools` (GitHub, Postgres, Slack, files) as the generic showcase
 * WebAssembly build and TypeScript package (guard, MCP server adapter, AI SDK adapter, jose verifier)
 * Keycloak reference stack with Docker Compose
 
@@ -25,8 +27,8 @@ in production. The original design document (German) is in [design/plan-de.md](d
 |---|---|---|
 | `rmcp` for MCP | own JSON-RPC/Streamable-HTTP layer on axum + reqwest | full control over parsing and forwarding; fewer moving parts |
 | `agent-approval-gate` crate for approvals | `Approver` trait + versioned webhook protocol in the gateway | no dependency on an unpublished crate version |
-| `rig` hook adapter | not included; use the core in-process (`Engine::check`) from any Rust agent loop | rig's hook API is pre-1.0 |
-| A2A adapter crate | `a2a_skill` action kind in the core | adapter is a thin wrapper; kind is enough to evaluate |
+| `rig` hook adapter | `warden-rig`: `ScopeHook` for rig-agent 0.46 (`on_dispatch`), pinned exactly | rig is pre-1.0 |
+| A2A adapter crate | `warden-a2a`: own JSON-RPC proxy (agent-card filtering, skill checks, task ownership) instead of `a2a-lf` | full control over parsing, same pattern as the MCP gateway |
 | OpenTelemetry exporter | `TracingSink` emitting `tracing` events | plug into `tracing-opentelemetry` without pinning an OTEL stack |
 | Introspection (RFC 7662), stdio upstreams, circuit breaker, result redaction | not yet | listed below |
 

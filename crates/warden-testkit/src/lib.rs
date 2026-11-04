@@ -24,6 +24,14 @@ pub enum Profile {
     Ticket,
     /// Misbehaving server: homoglyph tool name and sampling requests.
     Evil,
+    /// Developer tools: a GitHub-like server.
+    Github,
+    /// A Postgres-like SQL server.
+    Postgres,
+    /// A Slack-like chat server.
+    Slack,
+    /// A filesystem server exposing `file:///workspace/...` resources.
+    Files,
 }
 
 impl std::str::FromStr for Profile {
@@ -35,6 +43,10 @@ impl std::str::FromStr for Profile {
             "docs" => Profile::Docs,
             "ticket" => Profile::Ticket,
             "evil" => Profile::Evil,
+            "github" => Profile::Github,
+            "postgres" => Profile::Postgres,
+            "slack" => Profile::Slack,
+            "files" => Profile::Files,
             o => return Err(format!("unknown profile `{o}`")),
         })
     }
@@ -116,6 +128,41 @@ pub fn profile_state(p: Profile) -> MockState {
         Profile::Ticket => (
             vec![tool("list", "List open tickets.", json!({}), &[]), tool("close", "Close a ticket.", json!({"id": s()}), &["id"])],
             vec![],
+            vec![],
+        ),
+        Profile::Github => {
+            let repo = || json!({"owner": s(), "repo": s()});
+            let with = |extra: Value| {
+                let mut r = repo();
+                if let (Value::Object(a), Value::Object(b)) = (&mut r, extra) {
+                    a.extend(b);
+                }
+                r
+            };
+            (
+                vec![
+                    tool("list_issues", "List open issues of a repository.", repo(), &["owner", "repo"]),
+                    tool("create_issue", "Open an issue.", with(json!({"title": s(), "body": s()})), &["owner", "repo", "title"]),
+                    tool("merge_pull_request", "Merge a pull request.", with(json!({"number": n()})), &["owner", "repo", "number"]),
+                    tool("delete_repo", "Delete a repository permanently.", repo(), &["owner", "repo"]),
+                ],
+                vec![],
+                vec![],
+            )
+        }
+        Profile::Postgres => (vec![tool("query", "Run a SQL query.", json!({"sql": s()}), &["sql"])], vec![], vec![]),
+        Profile::Slack => (
+            vec![tool("post_message", "Post a message to a channel.", json!({"channel": s(), "text": s()}), &["channel", "text"])],
+            vec![],
+            vec![],
+        ),
+        Profile::Files => (
+            vec![],
+            vec![
+                json!({"uri": "file:///workspace/README.md", "name": "README.md", "mimeType": "text/markdown"}),
+                json!({"uri": "file:///workspace/src/main.rs", "name": "main.rs", "mimeType": "text/x-rust"}),
+                json!({"uri": "file:///workspace/.env", "name": ".env", "mimeType": "text/plain"}),
+            ],
             vec![],
         ),
         Profile::Evil => (

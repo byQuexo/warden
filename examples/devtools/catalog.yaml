@@ -1,0 +1,16 @@
+# Coding agents with access to GitHub, a Postgres database, Slack and the workspace files.
+# Names are namespaced by the gateway: <upstream>.<tool>. Anything not listed is denied.
+version: 1
+
+tool:
+  github.list_issues:        { scopes: [github:read] }
+  github.create_issue:       { scopes: [github:write], sensitivity: write }
+  github.merge_pull_request: { scopes: [github:write], sensitivity: write, tags: [release] }
+  github.delete_repo:        { scopes: [github:admin], sensitivity: write, tags: [destructive] }
+  postgres.query:            { scopes: [db:read] }
+  slack.post_message:        { scopes: [chat:write], sensitivity: write }
+
+resource:
+  "file:///workspace/**":    { scopes: [files:read] }
+  # Overlapping entries all apply: reading .env needs files:read *and* secrets:read.
+  "file:///workspace/.env":  { scopes: [secrets:read], tags: [secret] }

@@ -1,0 +1,20 @@
+# warden-gateway --config gateway.yaml --dev
+# Point the upstream URLs at your real MCP servers; nothing else in the policy changes.
+listen: 127.0.0.1:8088
+admin_listen: 127.0.0.1:8089
+admin_token_env: WARDEN_ADMIN_TOKEN
+public_url: http://127.0.0.1:8088/mcp
+identity: identity.yaml
+policy: { catalog: catalog.yaml, policy: policy.yaml, lock: catalog.lock }
+upstreams:
+  github:   { url: http://127.0.0.1:9101/mcp }
+  postgres: { url: http://127.0.0.1:9102/mcp }
+  slack:    { url: http://127.0.0.1:9103/mcp }
+  files:    { url: http://127.0.0.1:9104/mcp, resources: ["file://"] }
+approval: { approver: deny-all }
+audit:
+  sinks:
+    - { type: jsonl, dir: audit, chain: devtools, checkpoint_key_env: AUDIT_SIGNING_KEY, checkpoint_every: 20 }
+    - { type: stdout }
+  hmac_key_env: AUDIT_HMAC_KEY
+kill_switch: { file: kill }

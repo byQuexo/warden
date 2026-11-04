@@ -106,6 +106,16 @@ enum Cmd {
     },
     /// Run the whole stack in-process and walk through the security story.
     Demo,
+    /// Measure decision latency over scenario suites (use a release build).
+    Bench {
+        #[command(flatten)]
+        files: PolicyArgs,
+        #[arg(long = "suite")]
+        suites: Vec<PathBuf>,
+        /// Decisions to time.
+        #[arg(long, default_value_t = 100_000)]
+        decisions: usize,
+    },
 }
 
 #[derive(Subcommand)]
@@ -246,5 +256,6 @@ async fn run(cmd: Cmd) -> Result<i32, String> {
             }
         },
         Cmd::Demo => demo::run().await,
+        Cmd::Bench { files, suites, decisions } => commands::bench(&files, &suites, decisions),
     }
 }

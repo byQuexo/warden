@@ -1,0 +1,44 @@
+# Who may do what. Scopes grant; rules can only restrict.
+version: 1
+defaults: { effect: deny }
+model_messages: generic
+
+roles:
+  viewer:     [github:read, db:read, files:read]
+  developer:  [github:read, github:write, db:read, chat:write, files:read]
+  maintainer: [github:read, github:write, github:admin, db:read, chat:write, files:read, secrets:read]
+
+agents:
+  coding-agent:
+    description: Writes code and opens issues/PRs. Never deletes repos or reads secrets, whoever it works for.
+    max: [github:read, github:write, db:read, files:read]
+    delegation: { may_delegate_to: [review-agent] }
+  review-agent:
+    description: Read-only reviewer the coding agent can hand work to.
+    max: [github:read, files:read]
+    delegation: { max_depth: 1 }
+  ops-agent:
+    description: Operations assistant used by maintainers.
+    max: [github:read, github:admin, chat:write, db:read]
+
+rules:
+  - id: own-orgs-only
+    description: GitHub calls stay inside the organisations of the signed-in user.
+    match: { kind: tool, name: "github.*" }
+    require: { arg: owner, in: "{subject.attrs.orgs}" }
+
+  - id: merges-need-approval
+    match: { tag: release }
+    approve_if: always
+
+  - id: destructive-needs-approval
+    match: { tag: destructive }
+    approve_if: always
+
+  - id: read-only-sql
+    match: { kind: tool, name: postgres.query }
+    require: { arg: sql, sql: { dialect: postgres, tables_allow: [issues, deployments, metrics] } }
+
+  - id: own-channels-only
+    match: { kind: tool, name: slack.post_message }
+    require: { arg: channel, in: "{subject.attrs.channels}" }

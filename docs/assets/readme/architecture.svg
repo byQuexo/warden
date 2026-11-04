@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520" role="img" aria-label="Agents call the Warden gateway with the user's token; the gateway verifies the token, filters tool lists, checks each call, asks a human when needed, writes a signed audit log and forwards checked arguments with its own credential to the MCP servers. The same pure Rust engine runs inside the gateway, the rig hook, the A2A proxy and the TypeScript package.">
+  <title>Warden architecture</title>
+  <defs>
+    <linearGradient id="gw" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e3a8a"/><stop offset="1" stop-color="#4338ca"/></linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0d9488"/><stop offset="1" stop-color="#0891b2"/></linearGradient>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="1280" height="520" rx="18" fill="#f8fafc"/>
+  <g font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif">
+    <!-- agents -->
+    <text x="40" y="52" font-size="15" font-weight="700" fill="#475569">AGENTS</text>
+    <g font-size="16" fill="#0f172a">
+      <rect x="40" y="70" width="230" height="64" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="60" y="98" font-weight="700">Any MCP client</text><text x="60" y="120" font-size="14" fill="#64748b">Claude, Cursor, your bot</text>
+      <rect x="40" y="150" width="230" height="64" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="60" y="178" font-weight="700">rig agent (Rust)</text><text x="60" y="200" font-size="14" fill="#64748b">ScopeHook on every tool call</text>
+      <rect x="40" y="230" width="230" height="64" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="60" y="258" font-weight="700">TypeScript agent</text><text x="60" y="280" font-size="14" fill="#64748b">guard() · MCP · AI SDK (WASM)</text>
+      <rect x="40" y="310" width="230" height="64" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="60" y="338" font-weight="700">Other agents (A2A)</text><text x="60" y="360" font-size="14" fill="#64748b">skills filtered per caller</text>
+    </g>
+    <path d="M270 102 H350" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+    <text x="280" y="92" font-size="13" fill="#64748b">user token</text>
+
+    <!-- gateway -->
+    <rect x="352" y="62" width="560" height="320" rx="16" fill="url(#gw)"/>
+    <text x="378" y="98" font-size="22" font-weight="800" fill="#fff">warden gateway</text>
+    <text x="378" y="122" font-size="14" fill="#c7d2fe">MCP over Streamable HTTP · admin API · hot reload · kill switch</text>
+    <g font-size="15" font-weight="600" fill="#0f172a">
+      <rect x="378" y="142" width="160" height="54" rx="10" fill="#e0e7ff"/><text x="458" y="166" text-anchor="middle">1 verify token</text><text x="458" y="186" text-anchor="middle" font-size="12" font-weight="400">JWKS · bind session</text>
+      <rect x="552" y="142" width="160" height="54" rx="10" fill="#e0e7ff"/><text x="632" y="166" text-anchor="middle">2 filter lists</text><text x="632" y="186" text-anchor="middle" font-size="12" font-weight="400">tools · resources · prompts</text>
+      <rect x="726" y="142" width="160" height="54" rx="10" fill="#e0e7ff"/><text x="806" y="166" text-anchor="middle">3 check call</text><text x="806" y="186" text-anchor="middle" font-size="12" font-weight="400">strict args · pins</text>
+      <rect x="378" y="210" width="246" height="54" rx="10" fill="#fef3c7"/><text x="501" y="234" text-anchor="middle">4 human approval</text><text x="501" y="254" text-anchor="middle" font-size="12" font-weight="400">webhook · re-check · progress</text>
+      <rect x="640" y="210" width="246" height="54" rx="10" fill="#dcfce7"/><text x="763" y="234" text-anchor="middle">5 audit</text><text x="763" y="254" text-anchor="middle" font-size="12" font-weight="400">hash chain · signed checkpoints</text>
+    </g>
+    <rect x="378" y="284" width="508" height="76" rx="12" fill="url(#core)"/>
+    <text x="632" y="316" text-anchor="middle" font-size="18" font-weight="800" fill="#fff">warden-core: pure Rust decision engine</text>
+    <text x="632" y="342" text-anchor="middle" font-size="13" fill="#ccfbf1">roles ∩ agent ∩ token ∩ delegation → restrict-only rules → allow · approval · deny</text>
+
+    <!-- upstreams -->
+    <path d="M912 222 H990" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+    <text x="951" y="210" font-size="11" text-anchor="middle" fill="#64748b">checked args</text>
+    <text x="951" y="240" font-size="11" text-anchor="middle" fill="#64748b">own credential</text>
+    <text x="992" y="52" font-size="15" font-weight="700" fill="#475569">MCP SERVERS</text>
+    <g font-size="16" fill="#0f172a" font-weight="700">
+      <rect x="992" y="70" width="248" height="56" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="1012" y="104">GitHub</text>
+      <rect x="992" y="140" width="248" height="56" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="1012" y="174">Postgres</text>
+      <rect x="992" y="210" width="248" height="56" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="1012" y="244">Slack</text>
+      <rect x="992" y="280" width="248" height="56" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="1012" y="314">Files · your own servers</text>
+    </g>
+
+    <!-- identity + eval -->
+    <rect x="352" y="410" width="270" height="76" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="372" y="440" font-size="16" font-weight="700" fill="#0f172a">Your IdP + Warden STS</text>
+    <text x="372" y="464" font-size="13" fill="#64748b">Keycloak · Auth0 · Entra ID · Okta · OIDC</text>
+    <path d="M487 410 V384" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+    <rect x="642" y="410" width="270" height="76" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="662" y="440" font-size="16" font-weight="700" fill="#0f172a">warden eval in CI</text>
+    <text x="662" y="464" font-size="13" fill="#64748b">scenarios · generated attacks · mutation</text>
+    <path d="M777 410 V384" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+  </g>
+</svg>

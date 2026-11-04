@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="236" viewBox="0 0 1280 236" role="img" aria-label="0 policy violations across 209 scenario and attack cases; 100% mutation score; 14 microseconds per decision (p50)">
+  <title>0 violations across 209 cases · 100% mutation score · 14 µs per decision</title>
+  <defs>
+    <linearGradient id="c0" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d9488"/><stop offset="1" stop-color="#0891b2"/></linearGradient>
+    <linearGradient id="c1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+    <linearGradient id="c2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ea580c"/><stop offset="1" stop-color="#ec4899"/></linearGradient>
+    <pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#fff" opacity="0.18"/></pattern>
+  </defs>
+  <g font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif" fill="#fff">
+    <rect x="0" y="0" width="410" height="236" rx="18" fill="url(#c0)"/>
+    <path d="M260 0h132a18 18 0 0 1 18 18v120z" fill="url(#dots)"/>
+    <text x="32" y="112" font-size="76" font-weight="800">0</text>
+    <text x="32" y="152" font-size="22" font-weight="700">policy violations</text>
+    <text x="32" y="184" font-size="16" opacity="0.92">209 scenario + generated attack cases,</text>
+    <text x="32" y="206" font-size="16" opacity="0.92">hard gate in CI on every push</text>
+
+    <rect x="435" y="0" width="410" height="236" rx="18" fill="url(#c1)"/>
+    <path d="M695 0h132a18 18 0 0 1 18 18v120z" fill="url(#dots)"/>
+    <text x="467" y="112" font-size="76" font-weight="800">100%</text>
+    <text x="467" y="152" font-size="22" font-weight="700">mutation score</text>
+    <text x="467" y="184" font-size="16" opacity="0.92">remove any policy rule and at least</text>
+    <text x="467" y="206" font-size="16" opacity="0.92">one test fails; 100% rule coverage</text>
+
+    <rect x="870" y="0" width="410" height="236" rx="18" fill="url(#c2)"/>
+    <path d="M1130 0h132a18 18 0 0 1 18 18v120z" fill="url(#dots)"/>
+    <text x="902" y="112" font-size="76" font-weight="800">14 µs</text>
+    <text x="902" y="152" font-size="22" font-weight="700">per decision (p50)</text>
+    <text x="902" y="184" font-size="16" opacity="0.92">p99 45 µs incl. SQL parsing; same engine</text>
+    <text x="902" y="206" font-size="16" opacity="0.92">in Rust and WebAssembly, 88 shared vectors</text>
+  </g>
+</svg>
