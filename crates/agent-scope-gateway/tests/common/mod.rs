@@ -7,7 +7,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use agent_scope_audit::{generate_signing_key, signing_key_from_b64, verifying_key_from_b64, JsonlConfig, JsonlSink, MemorySink, MultiSink};
+use agent_scope_audit::{
+    generate_signing_key, signing_key_from_b64, verifying_key_from_b64, JsonlConfig, JsonlSink, MemorySink, MultiSink,
+};
 use agent_scope_core::lock::definition_hash;
 use agent_scope_core::{Engine, IdentityConfig, Lock};
 use agent_scope_gateway::{Gateway, UpstreamAuth, WebhookApprover};
@@ -21,7 +23,17 @@ pub const AUD: &str = "http://gw.test/mcp";
 pub const POLICY: &str = include_str!("../../../../examples/acme/policy.yaml");
 pub const CATALOG: &str = include_str!("../../../../examples/acme/catalog.yaml");
 pub const ALL_SCOPES: &[&str] = &[
-    "hr:read", "hr:salary", "crm:read", "crm:write", "crm:export", "ticket:read", "ticket:write", "docs:hr", "docs:it", "docs:sales", "admin",
+    "hr:read",
+    "hr:salary",
+    "crm:read",
+    "crm:write",
+    "crm:export",
+    "ticket:read",
+    "ticket:write",
+    "docs:hr",
+    "docs:it",
+    "docs:sales",
+    "admin",
 ];
 
 pub struct Harness {
@@ -83,11 +95,9 @@ pub async fn harness() -> Harness {
     );
     let engine_for_sts = Engine::builder().policy_yaml(POLICY).catalog_yaml(&catalog()).build().unwrap();
     let policy = engine_for_sts.policy().clone();
-    let sts = Sts::new(StsConfig { issuer: sts_url.clone(), token_ttl_s: 300, clients }, None)
-        .unwrap()
-        .with_delegation_check(Arc::new(move |from: &str, to: &str| {
-            policy.agents.get(from).is_some_and(|a| a.delegation.may_delegate_to.iter().any(|t| t == to))
-        }));
+    let sts = Sts::new(StsConfig { issuer: sts_url.clone(), token_ttl_s: 300, clients }, None).unwrap().with_delegation_check(Arc::new(
+        move |from: &str, to: &str| policy.agents.get(from).is_some_and(|a| a.delegation.may_delegate_to.iter().any(|t| t == to)),
+    ));
     let sts = Arc::new(sts);
     let r = sts.clone().router();
     tokio::spawn(async move { axum::serve(sts_l, r).await.unwrap() });
@@ -147,7 +157,13 @@ delegation_issuers: [{sts_url}]
         .upstream(
             "docs",
             &docs.url,
-            UpstreamAuth::ClientCredentials { token_url: token_url.clone(), client_id: "gw".into(), secret: "gw-secret".into(), audience: Some("docs-mcp".into()), scope: None },
+            UpstreamAuth::ClientCredentials {
+                token_url: token_url.clone(),
+                client_id: "gw".into(),
+                secret: "gw-secret".into(),
+                audience: Some("docs-mcp".into()),
+                scope: None,
+            },
             vec!["docs://".into()],
         )
         .upstream("evil", &evil.url, UpstreamAuth::None, vec![])

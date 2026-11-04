@@ -1,5 +1,6 @@
 //! Runs the real `agent-scope-gateway` binary from a `gateway.yaml`, against an in-process
 //! STS and mock upstream: config loading, env-var secrets, audit files and the CLI wiring.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::collections::HashMap;
 use std::process::{Child, Command, Stdio};
@@ -26,7 +27,17 @@ fn free_port() -> u16 {
 async fn gateway_binary_serves_a_config_file() {
     let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let sts_url = format!("http://{}", l.local_addr().unwrap());
-    let sts = Arc::new(Sts::new(StsConfig { issuer: sts_url.clone(), token_ttl_s: 300, clients: HashMap::from([("helpdesk-bot".to_string(), ClientDef { secret: "x".into(), ..Default::default() })]) }, None).unwrap());
+    let sts = Arc::new(
+        Sts::new(
+            StsConfig {
+                issuer: sts_url.clone(),
+                token_ttl_s: 300,
+                clients: HashMap::from([("helpdesk-bot".to_string(), ClientDef { secret: "x".into(), ..Default::default() })]),
+            },
+            None,
+        )
+        .unwrap(),
+    );
     let r = sts.clone().router();
     tokio::spawn(async move { axum::serve(l, r).await.unwrap() });
     let ticket = MockUpstream::spawn(Profile::Ticket).await;
@@ -101,9 +112,15 @@ audit:
     };
     assert_eq!(list(vera.clone()).await, vec!["ticket.list"]);
     assert_eq!(list(sam.clone()).await, vec!["ticket.close", "ticket.list"]);
-    let r = client.call(Some(&sam), "tools/call", json!({"name": "ticket.close", "arguments": {"id": "T-1 OR 1=1"}})).await.unwrap().result.unwrap();
+    let r = client
+        .call(Some(&sam), "tools/call", json!({"name": "ticket.close", "arguments": {"id": "T-1 OR 1=1"}}))
+        .await
+        .unwrap()
+        .result
+        .unwrap();
     assert_eq!(r["isError"], true);
-    let r = client.call(Some(&sam), "tools/call", json!({"name": "ticket.close", "arguments": {"id": "T-42"}})).await.unwrap().result.unwrap();
+    let r =
+        client.call(Some(&sam), "tools/call", json!({"name": "ticket.close", "arguments": {"id": "T-42"}})).await.unwrap().result.unwrap();
     assert_eq!(r["structuredContent"]["ok"], true);
 
     // Admin API is up and protected.
@@ -111,14 +128,20 @@ audit:
     assert_eq!(a.status(), 200);
 
     // Every decision is in a verifiable, signed chain.
-    let report = agent_scope_audit::verify_dir(&dir.path().join("audit"), Some(&agent_scope_audit::verifying_key_from_b64(&pk).unwrap()), 1).unwrap();
+    let report =
+        agent_scope_audit::verify_dir(&dir.path().join("audit"), Some(&agent_scope_audit::verifying_key_from_b64(&pk).unwrap()), 1)
+            .unwrap();
     assert!(report.chains["bin"].events >= 4, "{report:?}");
 }
 
 #[test]
 fn insecure_settings_require_dev_flag() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("identity.yaml"), "version: 1\nissuers:\n  - { issuer: http://idp.example.com, audience: a, mapping: { preset: keycloak } }\n").unwrap();
+    std::fs::write(
+        dir.path().join("identity.yaml"),
+        "version: 1\nissuers:\n  - { issuer: http://idp.example.com, audience: a, mapping: { preset: keycloak } }\n",
+    )
+    .unwrap();
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/minimal");
     for f in ["policy.yaml", "catalog.yaml"] {
         std::fs::copy(root.join(f), dir.path().join(f)).unwrap();
@@ -128,7 +151,10 @@ fn insecure_settings_require_dev_flag() {
         "public_url: http://x/mcp\nidentity: identity.yaml\npolicy: { catalog: catalog.yaml, policy: policy.yaml }\napproval: { approver: auto-approve }\naudit: { sinks: [ { type: stdout } ] }\n",
     )
     .unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_agent-scope-gateway")).args(["--config", dir.path().join("gateway.yaml").to_str().unwrap()]).output().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_agent-scope-gateway"))
+        .args(["--config", dir.path().join("gateway.yaml").to_str().unwrap()])
+        .output()
+        .unwrap();
     assert!(!out.status.success());
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("plain HTTP") || err.contains("--dev"), "{err}");

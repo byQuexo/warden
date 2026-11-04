@@ -24,12 +24,8 @@ pub fn mutate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>, suites: &
         let mut p = policy.clone();
         let removed = p.rules.remove(i);
         let engine = Engine::builder().policy(p).catalog(catalog.clone()).lock(lock.cloned()).build().map_err(|e| e.to_string())?;
-        let killed_by = suites
-            .iter()
-            .flat_map(|s| run_cases(&engine, s))
-            .filter(|r| !r.passed)
-            .map(|r| format!("{}/{}", r.suite, r.id))
-            .collect();
+        let killed_by =
+            suites.iter().flat_map(|s| run_cases(&engine, s)).filter(|r| !r.passed).map(|r| format!("{}/{}", r.suite, r.id)).collect();
         out.push(Mutant { rule: removed.id, killed_by });
     }
     Ok(out)

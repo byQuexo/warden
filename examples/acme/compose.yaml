@@ -1,0 +1,68 @@
+# Acme reference stack: Keycloak + agent-scope gateway + three MCP servers + approval webhook.
+#
+#   docker compose -f examples/acme/compose.yaml up --build
+#
+# Keycloak: http://localhost:8080 (admin/admin), gateway: http://localhost:8088/mcp,
+# admin API: http://localhost:8089 (token: dev-admin-token). See examples/acme/README.md.
+name: agent-scope-acme
+
+x-mock: &mock
+  build: { context: ../.., dockerfile: Dockerfile }
+  image: agent-scope:local
+  entrypoint: ["mock-mcp"]
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Tokens always carry this issuer, whether requested from the host or from inside the network.
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm-acme.json:/opt/keycloak/data/import/realm-acme.json:ro
+    ports: ["8080:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  hr:
+    <<: *mock
+    command: ["--profile", "hr", "--port", "9000"]
+  crm:
+    <<: *mock
+    command: ["--profile", "crm", "--port", "9000"]
+  docs:
+    <<: *mock
+    command: ["--profile", "docs", "--port", "9000"]
+  approver:
+    <<: *mock
+    command: ["--approver", "lead@acme", "--port", "9100"]
+
+  gateway:
+    image: agent-scope:local
+    build: { context: ../.., dockerfile: Dockerfile }
+    command: ["--config", "/etc/agent-scope/gateway.yaml", "--dev"]
+    environment:
+      ADMIN_TOKEN: dev-admin-token
+      GW_CLIENT_SECRET: dev-gw-secret
+      AUDIT_HMAC_KEY: dev-hmac-key
+      RUST_LOG: info
+    volumes:
+      - ./:/etc/agent-scope:ro
+      - audit:/var/lib/agent-scope
+    ports: ["8088:8088", "8089:8089"]
+    depends_on:
+      keycloak: { condition: service_healthy }
+      hr: { condition: service_started }
+      crm: { condition: service_started }
+      docs: { condition: service_started }
+      approver: { condition: service_started }
+
+volumes:
+  audit: {}

@@ -10,8 +10,7 @@ use sqlparser::ast::{visit_expressions, visit_relations, visit_statements, Expr,
 use sqlparser::dialect::{Dialect, GenericDialect, MySqlDialect, PostgreSqlDialect, SQLiteDialect};
 use sqlparser::parser::Parser;
 
-const DEFAULT_FUNCTIONS: &[&str] =
-    &["count", "sum", "avg", "min", "max", "lower", "upper", "coalesce", "round", "length", "date_trunc"];
+const DEFAULT_FUNCTIONS: &[&str] = &["count", "sum", "avg", "min", "max", "lower", "upper", "coalesce", "round", "length", "date_trunc"];
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -67,7 +66,7 @@ impl SqlSpec {
             }
         }
         let flow = visit_relations(&stmts, |rel| {
-            let full = rel.to_string().to_lowercase().replace('"', "").replace('`', "");
+            let full = rel.to_string().to_lowercase().replace(['"', '`'], "");
             let last = full.rsplit('.').next().unwrap_or(&full).to_string();
             if allowed.contains(&full) || allowed.contains(&last) {
                 ControlFlow::Continue(())

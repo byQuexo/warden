@@ -46,7 +46,9 @@ const MIN_SCENARIOS: &str = include_str!("../../../examples/minimal/scenarios.ya
 
 pub fn init(dir: &Path) -> Result<i32, String> {
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-    for (name, content) in [("policy.yaml", MIN_POLICY), ("catalog.yaml", MIN_CATALOG), ("identity.yaml", MIN_IDENTITY), ("scenarios.yaml", MIN_SCENARIOS)] {
+    for (name, content) in
+        [("policy.yaml", MIN_POLICY), ("catalog.yaml", MIN_CATALOG), ("identity.yaml", MIN_IDENTITY), ("scenarios.yaml", MIN_SCENARIOS)]
+    {
         let p = dir.join(name);
         if p.exists() {
             println!("skip   {} (exists)", p.display());
@@ -166,7 +168,10 @@ pub fn audit_verify(dir: &Path, pubkey: Option<&str>, max_unanchored: u64) -> Re
     match agent_scope_audit::verify_dir(dir, pk.as_ref(), max_unanchored) {
         Ok(r) => {
             for (chain, c) in &r.chains {
-                println!("✔ chain {chain}: {} events in {} file(s), {} signed checkpoint(s), {} unanchored", c.events, c.files, c.checkpoints, c.unanchored_tail);
+                println!(
+                    "✔ chain {chain}: {} events in {} file(s), {} signed checkpoint(s), {} unanchored",
+                    c.events, c.files, c.checkpoints, c.unanchored_tail
+                );
             }
             if pk.is_none() {
                 println!("note: no --pubkey given; checkpoint signatures were not verified");
@@ -198,7 +203,10 @@ async fn observed(gateway: &Path, token: Option<&str>, dev: bool) -> Result<BTre
                         Ok(n) => {
                             out.insert(format!("{up}.{n}"), (definition_hash(&d), d));
                         }
-                        Err(_) => eprintln!("warning: {up}: tool `{}` has a non-normalized name and will always be rejected", raw.escape_unicode()),
+                        Err(_) => eprintln!(
+                            "warning: {up}: tool `{}` has a non-normalized name and will always be rejected",
+                            raw.escape_unicode()
+                        ),
                     }
                 }
             }
@@ -214,10 +222,8 @@ pub async fn catalog_pull(gateway: &Path, lock_out: &Path, catalog_out: &Path, t
     let mut section = serde_json::Map::new();
     for (name, (hash, def)) in &tools {
         lock.pin("tool", name, hash);
-        section.insert(
-            name.clone(),
-            json!({"scopes": [], "sensitivity": "read", "description": def["description"].as_str().unwrap_or("")}),
-        );
+        section
+            .insert(name.clone(), json!({"scopes": [], "sensitivity": "read", "description": def["description"].as_str().unwrap_or("")}));
     }
     write(lock_out, &lock.to_json_string())?;
     let skeleton = json!({"version": 1, "tool": section});
@@ -320,7 +326,16 @@ pub async fn dev_sts(config: &Path, port: u16) -> Result<i32, String> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn dev_token(config: &Path, subject: &str, agent: &str, roles: &[String], attrs: &str, audience: &str, scopes: &[String], ttl: i64) -> Result<i32, String> {
+pub fn dev_token(
+    config: &Path,
+    subject: &str,
+    agent: &str,
+    roles: &[String],
+    attrs: &str,
+    audience: &str,
+    scopes: &[String],
+    ttl: i64,
+) -> Result<i32, String> {
     let sts = sts_from(config)?;
     let roles: Vec<&str> = roles.iter().map(String::as_str).collect();
     let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();

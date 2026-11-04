@@ -95,9 +95,20 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
     };
 
     let mut cases = Vec::new();
-    let mut push = |id: String, title: String, p: Principal, action: Action, expect: Expect, ctx: Option<Context>, raw: Option<String>, cat: &str| {
-        cases.push(Case { id, title, as_: None, principal: Some(p), action, args_raw: raw, context: ctx, expect, category: Some(cat.into()) });
-    };
+    let mut push =
+        |id: String, title: String, p: Principal, action: Action, expect: Expect, ctx: Option<Context>, raw: Option<String>, cat: &str| {
+            cases.push(Case {
+                id,
+                title,
+                as_: None,
+                principal: Some(p),
+                action,
+                args_raw: raw,
+                context: ctx,
+                expect,
+                category: Some(cat.into()),
+            });
+        };
 
     // 1. Every required scope is necessary.
     for (kind, name, e) in &exact {
@@ -105,7 +116,16 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
         for s in &resolved {
             let Some(role) = minus_role.get(s) else { continue };
             let p = Principal::new(Subject::user("__eval__").with_roles([role.as_str()]), AGENT);
-            push(format!("G-SCOPE {kind}:{name} without {s}"), format!("{name} needs {s}"), p, act(kind, name, json!({})), deny(Some("scope.missing"), Some(false)), None, None, "scope");
+            push(
+                format!("G-SCOPE {kind}:{name} without {s}"),
+                format!("{name} needs {s}"),
+                p,
+                act(kind, name, json!({})),
+                deny(Some("scope.missing"), Some(false)),
+                None,
+                None,
+                "scope",
+            );
         }
         let _ = e;
     }
@@ -118,7 +138,16 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
                 continue;
             }
             let p = Principal::new(god.subject.clone(), agent.as_str());
-            push(format!("G-AGENT {agent} {kind}:{name}"), format!("{agent} may not use {name}"), p, act(kind, name, json!({})), deny(Some("scope.missing"), Some(false)), None, None, "agent");
+            push(
+                format!("G-AGENT {agent} {kind}:{name}"),
+                format!("{agent} may not use {name}"),
+                p,
+                act(kind, name, json!({})),
+                deny(Some("scope.missing"), Some(false)),
+                None,
+                None,
+                "agent",
+            );
         }
     }
 
@@ -133,29 +162,83 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
                 let edge = adef.delegation.may_delegate_to.contains(b);
                 let p = Principal::new(god.subject.clone(), b.as_str()).with_act([a.as_str()]);
                 if !edge {
-                    push(format!("G-DELEG {a}->{b}"), format!("{a} may not delegate to {b}"), p, act(kind, name, json!({})), deny(Some("principal.delegation"), Some(false)), None, None, "delegation");
+                    push(
+                        format!("G-DELEG {a}->{b}"),
+                        format!("{a} may not delegate to {b}"),
+                        p,
+                        act(kind, name, json!({})),
+                        deny(Some("principal.delegation"), Some(false)),
+                        None,
+                        None,
+                        "delegation",
+                    );
                 } else if bdef.delegation.max_depth == 0 {
-                    push(format!("G-DEPTH {a}->{b}"), format!("{b} may not act under delegation"), p, act(kind, name, json!({})), deny(Some("principal.delegation_depth"), Some(false)), None, None, "delegation");
+                    push(
+                        format!("G-DEPTH {a}->{b}"),
+                        format!("{b} may not act under delegation"),
+                        p,
+                        act(kind, name, json!({})),
+                        deny(Some("principal.delegation_depth"), Some(false)),
+                        None,
+                        None,
+                        "delegation",
+                    );
                 }
             }
         }
         let unknown = Principal::new(god.subject.clone(), AGENT).with_act(["__eval_unknown_agent"]);
-        push("G-DELEG unknown actor".into(), "unknown agents in the chain are rejected".into(), unknown, act(kind, name, json!({})), deny(Some("principal.delegation"), Some(false)), None, None, "delegation");
+        push(
+            "G-DELEG unknown actor".into(),
+            "unknown agents in the chain are rejected".into(),
+            unknown,
+            act(kind, name, json!({})),
+            deny(Some("principal.delegation"), Some(false)),
+            None,
+            None,
+            "delegation",
+        );
 
         // Strict argument parsing.
-        push("G-DUPKEY".into(), "duplicate JSON keys are rejected".into(), god.clone(), act(kind, name, json!({})), deny(Some("normalize.args"), None), None, Some(r#"{"x":"a","x":"b"}"#.into()), "args");
+        push(
+            "G-DUPKEY".into(),
+            "duplicate JSON keys are rejected".into(),
+            god.clone(),
+            act(kind, name, json!({})),
+            deny(Some("normalize.args"), None),
+            None,
+            Some(r#"{"x":"a","x":"b"}"#.into()),
+            "args",
+        );
     }
 
     // 4. Unknown actions and look-alike names.
     if catalog.resolve(&ActionKind::Tool, "eval.not_in_catalog").is_none() {
-        push("G-UNTAGGED".into(), "actions without catalog entry are denied".into(), god.clone(), Action::tool("eval.not_in_catalog", json!({})), deny(Some("catalog.untagged"), Some(false)), None, None, "catalog");
+        push(
+            "G-UNTAGGED".into(),
+            "actions without catalog entry are denied".into(),
+            god.clone(),
+            Action::tool("eval.not_in_catalog", json!({})),
+            deny(Some("catalog.untagged"), Some(false)),
+            None,
+            None,
+            "catalog",
+        );
     }
     for (kind, name, _) in &exact {
         if catalog.normalize_mode(kind) != agent_scope_core::catalog::NormalizeMode::Name {
             continue;
         }
         if let Some(h) = homoglyph(name) {
-            push(format!("G-HOMOGLYPH {kind}:{name}"), format!("look-alike of {name}"), god.clone(), Action::new(kind.clone(), h, json!({})), deny(Some("normalize.name"), Some(false)), None, None, "names");
+            push(
+                format!("G-HOMOGLYPH {kind}:{name}"),
+                format!("look-alike of {name}"),
+                god.clone(),
+                Action::new(kind.clone(), h, json!({})),
+                deny(Some("normalize.name"), Some(false)),
+                None,
+                None,
+                "names",
+            );
         }
     }
 
@@ -169,14 +252,32 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
                 continue;
             }
             let id = |what: &str| format!("G-ARG {} {path} {what}", r.id);
-            push(id("missing"), format!("{} without `{path}`", r.id), god.clone(), act(kind, name, json!({})), deny(None, None), None, None, "args");
+            push(
+                id("missing"),
+                format!("{} without `{path}`", r.id),
+                god.clone(),
+                act(kind, name, json!({})),
+                deny(None, None),
+                None,
+                None,
+                "args",
+            );
             let wrong = match op {
                 Op::Min(_) | Op::Max(_) | Op::NotInRange(..) => Some(json!("1")),
                 Op::Equals(_) | Op::In(_) | Op::Glob(_) | Op::Regex(_) | Op::Sql(_) => Some(json!(12345)),
                 Op::Custom(_) => None,
             };
             if let Some(w) = wrong {
-                push(id("wrong-type"), format!("{} with mistyped `{path}`", r.id), god.clone(), act(kind, name, json!({ path.clone(): w })), deny(None, None), None, None, "args");
+                push(
+                    id("wrong-type"),
+                    format!("{} with mistyped `{path}`", r.id),
+                    god.clone(),
+                    act(kind, name, json!({ path.clone(): w })),
+                    deny(None, None),
+                    None,
+                    None,
+                    "args",
+                );
             }
             let invisible = match op {
                 Op::Equals(Operand::Placeholder(_)) | Op::In(Operand::Placeholder(_)) => Some(format!("{VALUE}\u{200b}")),
@@ -185,7 +286,16 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
                 _ => None,
             };
             if let Some(v) = invisible {
-                push(id("invisible"), format!("{} with zero-width space in `{path}`", r.id), god.clone(), act(kind, name, json!({ path.clone(): v })), deny(None, None), None, None, "args");
+                push(
+                    id("invisible"),
+                    format!("{} with zero-width space in `{path}`", r.id),
+                    god.clone(),
+                    act(kind, name, json!({ path.clone(): v })),
+                    deny(None, None),
+                    None,
+                    None,
+                    "args",
+                );
             }
         }
     }
@@ -193,12 +303,30 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
     // 6. Kill switch and service subjects.
     for (kind, name, _) in exact.iter().filter(|(k, n, _)| catalog.resolve(k, n).is_some_and(|r| r.sensitivity == Sensitivity::Write)) {
         let ctx = Context { kill_switch: KillSwitch::Writes, ..Default::default() };
-        push(format!("G-KILL {kind}:{name}"), "writes are blocked by the kill switch".into(), god.clone(), act(kind, name, json!({})), deny(Some("kill_switch"), Some(false)), Some(ctx), None, "kill_switch");
+        push(
+            format!("G-KILL {kind}:{name}"),
+            "writes are blocked by the kill switch".into(),
+            god.clone(),
+            act(kind, name, json!({})),
+            deny(Some("kill_switch"), Some(false)),
+            Some(ctx),
+            None,
+            "kill_switch",
+        );
     }
     if policy.service_subjects == ServiceSubjects::Deny {
         if let Some((kind, name, _)) = exact.first() {
             let svc = Principal::new(Subject::service("__eval_service__").with_roles([ALL]), AGENT);
-            push("G-SERVICE".into(), "tokens without a user are rejected".into(), svc, act(kind, name, json!({})), deny(Some("principal.service_subject"), Some(false)), None, None, "principal");
+            push(
+                "G-SERVICE".into(),
+                "tokens without a user are rejected".into(),
+                svc,
+                act(kind, name, json!({})),
+                deny(Some("principal.service_subject"), Some(false)),
+                None,
+                None,
+                "principal",
+            );
         }
     }
 

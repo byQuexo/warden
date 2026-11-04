@@ -1,5 +1,6 @@
 //! End-to-end scenarios: real tokens, real HTTP, real MCP sessions. Scenario ids refer to
 //! the threat catalogue in `docs/threat-model.md`.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 mod common;
 
@@ -217,7 +218,13 @@ async fn d_delegation_chains_are_intersected() {
     assert_eq!(h.memory.events_of("decision").last().unwrap()["rule"], "scope.missing");
 
     // The STS refuses edges that the policy does not allow.
-    let bad = [("grant_type", agent_scope_identity::TOKEN_EXCHANGE_GRANT), ("client_id", "acme-bot"), ("client_secret", "bot-secret"), ("subject_token", user.as_str()), ("delegate_to", "acme-finance-bot")];
+    let bad = [
+        ("grant_type", agent_scope_identity::TOKEN_EXCHANGE_GRANT),
+        ("client_id", "acme-bot"),
+        ("client_secret", "bot-secret"),
+        ("subject_token", user.as_str()),
+        ("delegate_to", "acme-finance-bot"),
+    ];
     let s = reqwest::Client::new().post(format!("{}/token", h.sts_url)).form(&bad).send().await.unwrap().status();
     assert_eq!(s, 403);
 }
@@ -391,7 +398,11 @@ async fn protected_resource_metadata_and_admin_api() {
 
     let principal = json!({"subject": {"id": "henrik", "roles": ["hr-lead"], "attrs": {"org_unit": "hr"}}, "agent": "acme-bot"});
     let (s, v) = h
-        .admin(Method::POST, "/v1/explain", Some(json!({"principal": principal, "action": {"kind": "tool", "name": "hr.get_salary", "args": {"unit": "sales"}}})))
+        .admin(
+            Method::POST,
+            "/v1/explain",
+            Some(json!({"principal": principal, "action": {"kind": "tool", "name": "hr.get_salary", "args": {"unit": "sales"}}})),
+        )
         .await;
     assert_eq!(s, 200);
     assert_eq!(v["decision"]["rule"], "salary-only-own-unit");

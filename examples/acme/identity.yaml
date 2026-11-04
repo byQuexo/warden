@@ -1,0 +1,11 @@
+# Trust the Keycloak realm from compose. Keycloak's issuer is the public URL; keys are
+# fetched over the internal network.
+version: 1
+issuers:
+  - issuer: http://localhost:8080/realms/acme
+    audience: http://localhost:8088/mcp
+    jwks_uri: http://keycloak:8080/realms/acme/protocol/openid-connect/certs
+    algorithms: [RS256]
+    mapping: { preset: keycloak, attrs: { org_unit: /org_unit, tenants: /tenants } }
+# Keycloak scopes are OIDC scopes (openid, profile …), not agent-scope scopes.
+scope_claim: ignore

@@ -35,9 +35,7 @@ pub fn parse_strict(input: &str, limits: Limits) -> Result<Value, JsonError> {
         return Err(JsonError::TooLarge(input.len(), limits.max_bytes));
     }
     let mut de = serde_json::Deserializer::from_str(input);
-    let v = StrictSeed { depth: 0, max_depth: limits.max_depth }
-        .deserialize(&mut de)
-        .map_err(|e| JsonError::Invalid(e.to_string()))?;
+    let v = StrictSeed { depth: 0, max_depth: limits.max_depth }.deserialize(&mut de).map_err(|e| JsonError::Invalid(e.to_string()))?;
     de.end().map_err(|e| JsonError::Invalid(e.to_string()))?;
     Ok(v)
 }

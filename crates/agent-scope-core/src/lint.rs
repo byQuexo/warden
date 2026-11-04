@@ -123,7 +123,7 @@ pub fn lint(
                     }
                 }
             }
-            for (other, _) in &section.entries {
+            for other in section.entries.keys() {
                 if other != pattern && glob::is_glob(other) && glob::matches(other, pattern, sep) {
                     f.push(Finding::warning(
                         "catalog.overlap",
@@ -179,9 +179,7 @@ fn rule_reaches_catalog(r: &CompiledRule, catalog: &Catalog) -> bool {
         }
         let sep = glob::separator_for_uri(section.normalize == NormalizeMode::Uri);
         section.entries.iter().any(|(pattern, e)| {
-            let name_ok = m.name.as_ref().is_none_or(|n| {
-                n == pattern || glob::matches(n, pattern, sep) || glob::matches(pattern, n, sep)
-            });
+            let name_ok = m.name.as_ref().is_none_or(|n| n == pattern || glob::matches(n, pattern, sep) || glob::matches(pattern, n, sep));
             let tag_ok = m.tag.as_ref().is_none_or(|t| e.tags.contains(t));
             let sens_ok = m.sensitivity.is_none_or(|s| s == e.sensitivity);
             name_ok && tag_ok && sens_ok

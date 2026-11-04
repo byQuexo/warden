@@ -215,20 +215,28 @@ async fn run(cmd: Cmd) -> Result<i32, String> {
     match cmd {
         Cmd::Init { dir } => commands::init(&dir),
         Cmd::Lint { files, identity, strict } => commands::lint(&files, identity.as_deref(), strict),
-        Cmd::Explain { files, principal, action, args, context, json } => commands::explain(&files, &principal, &action, &args, context.as_deref(), json),
+        Cmd::Explain { files, principal, action, args, context, json } => {
+            commands::explain(&files, &principal, &action, &args, context.as_deref(), json)
+        }
         Cmd::Eval { files, suites, generate, mutate, coverage, baseline, write_baseline, report, json, gate } => {
             commands::eval(commands::EvalOpts { files, suites, generate, mutate, coverage, baseline, write_baseline, report, json, gate })
         }
-        Cmd::Audit { cmd: AuditCmd::Verify { dir, pubkey, max_unanchored } } => commands::audit_verify(&dir, pubkey.as_deref(), max_unanchored),
+        Cmd::Audit { cmd: AuditCmd::Verify { dir, pubkey, max_unanchored } } => {
+            commands::audit_verify(&dir, pubkey.as_deref(), max_unanchored)
+        }
         Cmd::Audit { cmd: AuditCmd::Keygen } => {
             let (sk, pk) = agent_scope_audit::generate_signing_key();
             println!("AUDIT_SIGNING_KEY={sk}\nAUDIT_PUBLIC_KEY={pk}");
             Ok(0)
         }
         Cmd::Catalog { cmd } => match cmd {
-            CatalogCmd::Pull { gateway, lock_out, catalog_out, token, dev } => commands::catalog_pull(&gateway, &lock_out, &catalog_out, token.as_deref(), dev).await,
+            CatalogCmd::Pull { gateway, lock_out, catalog_out, token, dev } => {
+                commands::catalog_pull(&gateway, &lock_out, &catalog_out, token.as_deref(), dev).await
+            }
             CatalogCmd::Diff { gateway, lock, token, dev } => commands::catalog_diff(&gateway, &lock, token.as_deref(), dev).await,
-            CatalogCmd::Accept { gateway, lock, tools, token, dev } => commands::catalog_accept(&gateway, &lock, &tools, token.as_deref(), dev).await,
+            CatalogCmd::Accept { gateway, lock, tools, token, dev } => {
+                commands::catalog_accept(&gateway, &lock, &tools, token.as_deref(), dev).await
+            }
         },
         Cmd::Dev { cmd } => match cmd {
             DevCmd::Keygen => commands::dev_keygen(),

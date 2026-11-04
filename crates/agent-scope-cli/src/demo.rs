@@ -5,7 +5,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use agent_scope_audit::{generate_signing_key, signing_key_from_b64, verify_dir, verifying_key_from_b64, AuditSink, JsonlConfig, JsonlSink};
+use agent_scope_audit::{
+    generate_signing_key, signing_key_from_b64, verify_dir, verifying_key_from_b64, AuditSink, JsonlConfig, JsonlSink,
+};
 use agent_scope_core::lock::definition_hash;
 use agent_scope_core::{Engine, IdentityConfig, KillSwitch, Lock};
 use agent_scope_gateway::{Gateway, UpstreamAuth, WebhookApprover};
@@ -67,7 +69,8 @@ impl Demo {
         let t = self.token(user);
         match self.client.call(Some(&t), "tools/list", json!({})).await.map(|o| o.result) {
             Ok(Ok(r)) => {
-                let mut v: Vec<String> = r["tools"].as_array().into_iter().flatten().filter_map(|t| t["name"].as_str().map(str::to_string)).collect();
+                let mut v: Vec<String> =
+                    r["tools"].as_array().into_iter().flatten().filter_map(|t| t["name"].as_str().map(str::to_string)).collect();
                 v.sort();
                 v
             }
@@ -94,14 +97,21 @@ impl Demo {
 
 pub async fn run() -> Result<i32, String> {
     println!("\n{BOLD}agent-scope{RESET} — authorization for AI agents");
-    println!("{DIM}booting in-process: dev STS (OIDC, JWKS, token exchange) · MCP servers hr, crm, docs · approval webhook · gateway{RESET}");
+    println!(
+        "{DIM}booting in-process: dev STS (OIDC, JWKS, token exchange) · MCP servers hr, crm, docs · approval webhook · gateway{RESET}"
+    );
 
     // STS / IdP
     let (sts_l, sts_url) = bind().await?;
     let mut clients = HashMap::new();
     clients.insert(
         "gw".to_string(),
-        ClientDef { secret: "gw-secret".into(), accept_audiences: vec![AUD.into()], may_exchange_to: vec!["hr-mcp".into(), "crm-mcp".into()], ..Default::default() },
+        ClientDef {
+            secret: "gw-secret".into(),
+            accept_audiences: vec![AUD.into()],
+            may_exchange_to: vec!["hr-mcp".into(), "crm-mcp".into()],
+            ..Default::default()
+        },
     );
     let sts = Arc::new(Sts::new(StsConfig { issuer: sts_url.clone(), token_ttl_s: 600, clients }, None)?);
     let router = sts.clone().router();
@@ -110,7 +120,8 @@ pub async fn run() -> Result<i32, String> {
     });
 
     // Upstreams and approver
-    let (hr, crm, docs) = (MockUpstream::spawn(Profile::Hr).await, MockUpstream::spawn(Profile::Crm).await, MockUpstream::spawn(Profile::Docs).await);
+    let (hr, crm, docs) =
+        (MockUpstream::spawn(Profile::Hr).await, MockUpstream::spawn(Profile::Crm).await, MockUpstream::spawn(Profile::Docs).await);
     let approver = MockApprover::spawn().await;
     approver.answer("approve", "lead@acme", 400);
 
@@ -130,12 +141,23 @@ pub async fn run() -> Result<i32, String> {
     let dir = std::env::temp_dir().join(format!("agent-scope-demo-{}", std::process::id()));
     let (sk, pk) = generate_signing_key();
     let audit = Arc::new(
-        JsonlSink::open(JsonlConfig { dir: dir.clone(), chain: "demo".into(), signing_key: Some(signing_key_from_b64(&sk).map_err(|e| e.to_string())?), checkpoint_every: 10 })
-            .map_err(|e| e.to_string())?,
+        JsonlSink::open(JsonlConfig {
+            dir: dir.clone(),
+            chain: "demo".into(),
+            signing_key: Some(signing_key_from_b64(&sk).map_err(|e| e.to_string())?),
+            checkpoint_every: 10,
+        })
+        .map_err(|e| e.to_string())?,
     );
 
     let token_url = format!("{sts_url}/token");
-    let exchange = |aud: &str| UpstreamAuth::TokenExchange { token_url: token_url.clone(), client_id: "gw".into(), secret: "gw-secret".into(), audience: aud.into(), scope: None };
+    let exchange = |aud: &str| UpstreamAuth::TokenExchange {
+        token_url: token_url.clone(),
+        client_id: "gw".into(),
+        secret: "gw-secret".into(),
+        audience: aud.into(),
+        scope: None,
+    };
     let gw = Gateway::builder()
         .engine(engine)
         .verifier(Verifier::new(identity))
@@ -166,7 +188,12 @@ pub async fn run() -> Result<i32, String> {
         ("sven", "crm.list_deals", json!({"tenant": "enterprise"}), "crm.list_deals {tenant: enterprise}"),
         ("sven", "crm.list_deals", json!({"tenant": "dach\u{200b}"}), "crm.list_deals {tenant: \"dach\\u200b\"}"),
         ("sven", "crm.query", json!({"sql": "SELECT * FROM deals; DROP TABLE accounts"}), "crm.query \"…; DROP TABLE accounts\""),
-        ("sven", "crm.update_deal", json!({"tenant": "dach", "deal_id": "d-1", "amount": "80000"}), "crm.update_deal {amount: \"80000\"} (string)"),
+        (
+            "sven",
+            "crm.update_deal",
+            json!({"tenant": "dach", "deal_id": "d-1", "amount": "80000"}),
+            "crm.update_deal {amount: \"80000\"} (string)",
+        ),
     ];
     for (u, tool, args, label) in cases {
         let (v, rule) = d.call(u, tool, args).await;
@@ -216,7 +243,10 @@ pub async fn run() -> Result<i32, String> {
         .filter_map(|r| r.authorization)
         .any(|a| ["hanna", "henrik", "sven"].iter().any(|u| a.ends_with(&d.token(u))));
     let calls: usize = [&hr, &crm].iter().map(|u| u.requests_for("tools/call").len()).sum();
-    println!("   upstreams received {calls} tool calls, all with exchanged tokens — user tokens passed through: {}", if leaked { "YES ✘" } else { "none ✔" });
+    println!(
+        "   upstreams received {calls} tool calls, all with exchanged tokens — user tokens passed through: {}",
+        if leaked { "YES ✘" } else { "none ✔" }
+    );
     println!("   audit files: {DIM}{}{RESET}\n", dir.display());
     Ok(0)
 }

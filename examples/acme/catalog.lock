@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "pins": {
+    "tool": {
+      "crm.export_deals": "sha256:fdaaa0c479df0357be9373d4bcd9d40b5f3c66ad3319ed9b8d091651000000fc",
+      "crm.list_deals": "sha256:208e29bf54faef63f13e788c12dd67d685ee624eb985775161cd8dfbe93aff8f",
+      "crm.query": "sha256:a7f07584ed8d969e2235ce93cd0f1dc9924ae0be7431c70caff33bff4ec78361",
+      "crm.update_deal": "sha256:b4c45a6413a093ecf19e0dd396afca390cf8e132a237c92e56a0c43577a68dae",
+      "hr.delete_employee": "sha256:f1af8edf6e4d8d051e76617bd9fe3f334ae038cba6884dfbbdb99bc593383ecc",
+      "hr.get_salary": "sha256:4cc3c3d84fc25657d91782046ee9ed5b7549e9ee4463badc54d9f9b33324e851",
+      "hr.search_employees": "sha256:d35046cee9c580c250742e954519423b67582b2d205885f5db28d098079faf96"
+    }
+  }
+}

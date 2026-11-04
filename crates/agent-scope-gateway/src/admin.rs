@@ -107,11 +107,8 @@ async fn set_kill(State(gw): State<Gateway>, Json(r): Json<KillReq>) -> Response
 }
 
 async fn upstreams(State(gw): State<Gateway>) -> Response {
-    let list: Vec<Value> = gw
-        .upstreams
-        .values()
-        .map(|u| json!({"name": u.name, "url": u.client.url(), "resource_prefixes": u.resource_prefixes}))
-        .collect();
+    let list: Vec<Value> =
+        gw.upstreams.values().map(|u| json!({"name": u.name, "url": u.client.url(), "resource_prefixes": u.resource_prefixes})).collect();
     Json(json!({"upstreams": list})).into_response()
 }
 

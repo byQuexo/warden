@@ -1,4 +1,5 @@
 //! Conformance vectors (spec/vectors/manifest.yaml). The TypeScript package runs the same files.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::path::{Path, PathBuf};
 
@@ -51,7 +52,8 @@ fn manifest() -> Manifest {
 fn decision_vectors() {
     let mut total = 0;
     for s in manifest().decision_suites {
-        let engine = Engine::builder().policy_yaml(&read(&root().join(&s.policy))).catalog_yaml(&read(&root().join(&s.catalog))).build().unwrap();
+        let engine =
+            Engine::builder().policy_yaml(&read(&root().join(&s.policy))).catalog_yaml(&read(&root().join(&s.catalog))).build().unwrap();
         let suite = Suite::load(&root().join(&s.suite)).unwrap();
         let failed: Vec<String> = run_cases(&engine, &suite)
             .into_iter()
@@ -63,7 +65,8 @@ fn decision_vectors() {
 
         // Generated attacks must be denied for every vector policy as well.
         let g = generate(engine.policy(), engine.catalog(), None).unwrap();
-        let gen_failed: Vec<String> = run_cases(&g.engine, &g.suite).into_iter().filter(|r| !r.passed).map(|r| format!("{} -> {:?}", r.id, r.actual)).collect();
+        let gen_failed: Vec<String> =
+            run_cases(&g.engine, &g.suite).into_iter().filter(|r| !r.passed).map(|r| format!("{} -> {:?}", r.id, r.actual)).collect();
         assert!(gen_failed.is_empty(), "{}: {gen_failed:#?}", s.suite);
     }
     assert!(total >= 60, "only {total} decision vectors");

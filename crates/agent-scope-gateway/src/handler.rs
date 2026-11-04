@@ -1,4 +1,6 @@
 //! The MCP endpoint: authentication, sessions, list filtering and call enforcement.
+// Early-return `Result<_, Response>` keeps handlers readable; responses are built once per request.
+#![allow(clippy::result_large_err)]
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -87,7 +89,10 @@ fn check_session(gw: &Gateway, headers: &HeaderMap, p: &Principal) -> Result<Str
             let mut f = Gateway::principal_fields(p);
             f.insert("session".into(), json!(sid));
             gw.record("session_mismatch", Value::Object(f));
-            Err(json_rpc(StatusCode::FORBIDDEN, jsonrpc::error(Value::Null, jsonrpc::FORBIDDEN, "session belongs to a different principal")))
+            Err(json_rpc(
+                StatusCode::FORBIDDEN,
+                jsonrpc::error(Value::Null, jsonrpc::FORBIDDEN, "session belongs to a different principal"),
+            ))
         }
         Some(_) => Ok(sid.to_string()),
     }
@@ -112,7 +117,10 @@ pub async fn post(State(gw): State<Gateway>, headers: HeaderMap, body: Bytes) ->
         }
     };
     if msg.is_array() {
-        return json_rpc(StatusCode::BAD_REQUEST, jsonrpc::error(Value::Null, jsonrpc::INVALID_REQUEST, "JSON-RPC batches are not supported"));
+        return json_rpc(
+            StatusCode::BAD_REQUEST,
+            jsonrpc::error(Value::Null, jsonrpc::INVALID_REQUEST, "JSON-RPC batches are not supported"),
+        );
     }
     let (id, method, params) = match jsonrpc::classify(&msg) {
         Message::Invalid(why) => return json_rpc(StatusCode::BAD_REQUEST, jsonrpc::error(Value::Null, jsonrpc::INVALID_REQUEST, why)),
@@ -145,10 +153,7 @@ pub async fn post(State(gw): State<Gateway>, headers: HeaderMap, body: Bytes) ->
         return r;
     }
 
-    let wants_sse = headers
-        .get("accept")
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|a| a.contains("text/event-stream"));
+    let wants_sse = headers.get("accept").and_then(|v| v.to_str().ok()).is_some_and(|a| a.contains("text/event-stream"));
     let progress_token = params.pointer("/_meta/progressToken").cloned();
 
     let reply = match method.as_str() {
@@ -248,7 +253,10 @@ async fn list_tools(gw: &Gateway, p: &Principal, token: &str) -> Value {
             let full = match normalize_name(raw).and_then(|l| normalize_name(&format!("{name}.{l}"))) {
                 Ok(f) => f,
                 Err(_) => {
-                    gw.record("tool_rejected", json!({"upstream": name, "name": raw, "reason": "name is not a normalized ASCII identifier"}));
+                    gw.record(
+                        "tool_rejected",
+                        json!({"upstream": name, "name": raw, "reason": "name is not a normalized ASCII identifier"}),
+                    );
                     continue;
                 }
             };
@@ -323,7 +331,10 @@ async fn tools_call(
     if let Some((up, local)) = &routed {
         let cred = credential(gw, up, token).await.ok().flatten();
         if let Ok(defs) = gw.definitions(up, cred.as_deref(), false).await {
-            if let Some(def) = defs.iter().find(|d| d.get("name").and_then(Value::as_str).and_then(|n| normalize_name(n).ok()).as_deref() == Some(local.as_str())) {
+            if let Some(def) = defs
+                .iter()
+                .find(|d| d.get("name").and_then(Value::as_str).and_then(|n| normalize_name(n).ok()).as_deref() == Some(local.as_str()))
+            {
                 raw_name = def.get("name").and_then(Value::as_str).map(str::to_string);
                 hash = Some(definition_hash(def));
             }
@@ -343,12 +354,10 @@ async fn tools_call(
     match d.effect {
         Effect::Deny => jsonrpc::ok(id, deny_tool(&d)),
         Effect::Allow => forward_tool(gw, p, token, up, id, &raw, args).await,
-        Effect::RequireApproval => {
-            match approve(gw, p, &action, &d, progress).await {
-                Ok(()) => forward_tool(gw, p, token, up, id, &raw, args).await,
-                Err(denied) => jsonrpc::ok(id, jsonrpc::tool_error(&denied)),
-            }
-        }
+        Effect::RequireApproval => match approve(gw, p, &action, &d, progress).await {
+            Ok(()) => forward_tool(gw, p, token, up, id, &raw, args).await,
+            Err(denied) => jsonrpc::ok(id, jsonrpc::tool_error(&denied)),
+        },
     }
 }
 
@@ -385,7 +394,13 @@ async fn forward_tool(gw: &Gateway, p: &Principal, token: &str, up: &Upstream, i
 }
 
 /// Ask the approver; on success, re-check before forwarding. `Err` carries the model message.
-async fn approve(gw: &Gateway, p: &Principal, action: &Action, d: &Decision, progress: Option<(Value, mpsc::Sender<Value>)>) -> Result<(), String> {
+async fn approve(
+    gw: &Gateway,
+    p: &Principal,
+    action: &Action,
+    d: &Decision,
+    progress: Option<(Value, mpsc::Sender<Value>)>,
+) -> Result<(), String> {
     let denied = "This action was not approved.".to_string();
     let args_hash = args_hmac(&gw.hmac_key, &action.args);
     let req = ApprovalRequest {

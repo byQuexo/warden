@@ -12,9 +12,21 @@ pub enum UpstreamAuth {
     /// A fixed token, e.g. for a third-party API key.
     Static(String),
     /// The gateway's own service account.
-    ClientCredentials { token_url: String, client_id: String, secret: String, audience: Option<String>, scope: Option<String> },
+    ClientCredentials {
+        token_url: String,
+        client_id: String,
+        secret: String,
+        audience: Option<String>,
+        scope: Option<String>,
+    },
     /// RFC 8693: exchange the user's token for one scoped to this upstream (keeps `sub` and `act`).
-    TokenExchange { token_url: String, client_id: String, secret: String, audience: String, scope: Option<String> },
+    TokenExchange {
+        token_url: String,
+        client_id: String,
+        secret: String,
+        audience: String,
+        scope: Option<String>,
+    },
 }
 
 #[derive(Default)]

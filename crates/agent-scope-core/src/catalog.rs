@@ -98,12 +98,10 @@ impl Catalog {
             let mut entries = BTreeMap::new();
             for (pattern, entry) in map {
                 if pattern == "_normalize" {
-                    normalize = serde_json::from_value(entry)
-                        .map_err(|_| format!("`{key}._normalize` must be `name` or `uri`"))?;
+                    normalize = serde_json::from_value(entry).map_err(|_| format!("`{key}._normalize` must be `name` or `uri`"))?;
                     continue;
                 }
-                let e: CatalogEntry =
-                    serde_json::from_value(entry).map_err(|e| format!("`{key}.{pattern}`: {e}"))?;
+                let e: CatalogEntry = serde_json::from_value(entry).map_err(|e| format!("`{key}.{pattern}`: {e}"))?;
                 entries.insert(pattern, e);
             }
             kinds.insert(kind, KindSection { normalize, entries });

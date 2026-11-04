@@ -123,18 +123,13 @@ pub fn run_case(engine: &Engine, suite: &str, principal: &Principal, c: &Case) -
             }
             let d = engine.check(principal, &action, &ctx);
             let visible = engine.visible(principal, &action, &ctx);
-            let rules = d
-                .trace
-                .iter()
-                .filter_map(|s| s.step.strip_prefix("rule:").map(|r| (r.to_string(), s.outcome.clone())))
-                .collect();
+            let rules = d.trace.iter().filter_map(|s| s.step.strip_prefix("rule:").map(|r| (r.to_string(), s.outcome.clone()))).collect();
             (d.effect, d.rule, visible, rules)
         }
     };
     let e = &c.expect;
-    let passed = e.effect.is_none_or(|x| x == effect)
-        && e.rule.as_ref().is_none_or(|r| r == &rule)
-        && e.visible.is_none_or(|v| v == visible);
+    let passed =
+        e.effect.is_none_or(|x| x == effect) && e.rule.as_ref().is_none_or(|r| r == &rule) && e.visible.is_none_or(|v| v == visible);
     let failure = (!passed).then(|| {
         let delegated = !principal.act.is_empty();
         match (e.effect, effect) {

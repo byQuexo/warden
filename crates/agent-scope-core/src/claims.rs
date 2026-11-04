@@ -62,6 +62,7 @@ fn default_algorithms() -> Vec<String> {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)] // config type, built once
 pub enum MappingRef {
     Preset {
         preset: String,
@@ -156,10 +157,7 @@ pub const PRESETS: &[(&str, &str)] = &[
 ];
 
 pub fn preset(name: &str) -> Option<Result<Mapping, String>> {
-    PRESETS
-        .iter()
-        .find(|(n, _)| *n == name)
-        .map(|(_, y)| serde_norway::from_str(y).map_err(|e| format!("preset `{name}`: {e}")))
+    PRESETS.iter().find(|(n, _)| *n == name).map(|(_, y)| serde_norway::from_str(y).map_err(|e| format!("preset `{name}`: {e}")))
 }
 
 impl MappingRef {
@@ -285,10 +283,7 @@ fn act_chain(v: &Value) -> Result<Vec<String>, TokenError> {
     let mut out = Vec::new();
     let mut cur = Some(v);
     while let Some(node) = cur {
-        let sub = node
-            .get("sub")
-            .and_then(Value::as_str)
-            .ok_or_else(|| TokenError::MissingClaim("act.sub".into()))?;
+        let sub = node.get("sub").and_then(Value::as_str).ok_or_else(|| TokenError::MissingClaim("act.sub".into()))?;
         out.push(sub.to_string());
         if out.len() > 16 {
             return Err(TokenError::MissingClaim("act (chain too long)".into()));
@@ -328,23 +323,13 @@ pub fn principal_from_claims(claims: &Value, cfg: &IdentityConfig, now: i64) -> 
             return Err(TokenError::TokenType);
         }
     }
-    let subject_id = m
-        .subject
-        .lookup(claims)
-        .and_then(Value::as_str)
-        .ok_or_else(|| TokenError::MissingClaim("subject".into()))?;
-    let agent = m
-        .agent
-        .lookup(claims)
-        .and_then(Value::as_str)
-        .ok_or_else(|| TokenError::MissingClaim("agent".into()))?;
+    let subject_id = m.subject.lookup(claims).and_then(Value::as_str).ok_or_else(|| TokenError::MissingClaim("subject".into()))?;
+    let agent = m.agent.lookup(claims).and_then(Value::as_str).ok_or_else(|| TokenError::MissingClaim("agent".into()))?;
 
     let roles: BTreeSet<String> = m.roles.as_ref().and_then(|r| list(claims, r)).unwrap_or_default().into_iter().collect();
     let token_scopes = match cfg.scope_claim {
         ScopeClaim::Ignore => None,
-        ScopeClaim::Required => {
-            Some(m.scopes.as_ref().and_then(|s| list(claims, s)).unwrap_or_default().into_iter().collect())
-        }
+        ScopeClaim::Required => Some(m.scopes.as_ref().and_then(|s| list(claims, s)).unwrap_or_default().into_iter().collect()),
     };
 
     let act = match m.act.as_ref().and_then(|p| claims.pointer(p)) {

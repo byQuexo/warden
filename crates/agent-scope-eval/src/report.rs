@@ -67,11 +67,7 @@ impl EvalReport {
         }
         let regressions: Vec<String> = match &cfg.baseline {
             None => vec![],
-            Some(b) => results
-                .iter()
-                .filter(|r| !r.passed && b.get(&key(r)).map(String::as_str) == Some("pass"))
-                .map(key)
-                .collect(),
+            Some(b) => results.iter().filter(|r| !r.passed && b.get(&key(r)).map(String::as_str) == Some("pass")).map(key).collect(),
         };
 
         let zero = |name: &str, n: usize| Gate { name: name.into(), value: n.to_string(), threshold: "0".into(), passed: n == 0 };
@@ -117,7 +113,10 @@ impl EvalReport {
         let passed = self.results.iter().filter(|r| r.passed).count();
         s.push_str("# agent-scope security evaluation\n\n");
         s.push_str(&format!("Policy version `{}`  \n", self.policy_version));
-        s.push_str(&format!("**{passed}/{total} cases passed** — {}\n\n", if self.passed() { "all gates green ✅" } else { "gates failed ❌" }));
+        s.push_str(&format!(
+            "**{passed}/{total} cases passed** — {}\n\n",
+            if self.passed() { "all gates green ✅" } else { "gates failed ❌" }
+        ));
         s.push_str("| Gate | Value | Threshold | |\n|---|---|---|---|\n");
         for g in &self.gates {
             s.push_str(&format!("| `{}` | {} | {} | {} |\n", g.name, g.value, g.threshold, if g.passed { "✅" } else { "❌" }));
@@ -144,7 +143,11 @@ impl EvalReport {
         if let Some(ms) = &self.mutants {
             s.push_str("\n### Mutants (rule removed)\n\n| Rule | Killed by |\n|---|---|\n");
             for m in ms {
-                let by = if m.killed_by.is_empty() { "**survived**".to_string() } else { m.killed_by.iter().take(3).cloned().collect::<Vec<_>>().join(", ") };
+                let by = if m.killed_by.is_empty() {
+                    "**survived**".to_string()
+                } else {
+                    m.killed_by.iter().take(3).cloned().collect::<Vec<_>>().join(", ")
+                };
                 s.push_str(&format!("| `{}` | {by} |\n", m.rule));
             }
         }

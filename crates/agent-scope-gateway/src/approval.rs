@@ -71,11 +71,7 @@ pub struct WebhookApprover {
 
 impl WebhookApprover {
     pub fn new(url: impl Into<String>, secret: Option<Vec<u8>>, timeout: Duration) -> Self {
-        Self {
-            url: url.into(),
-            secret,
-            http: reqwest::Client::builder().timeout(timeout).build().unwrap_or_default(),
-        }
+        Self { url: url.into(), secret, http: reqwest::Client::builder().timeout(timeout).build().unwrap_or_default() }
     }
 }
 

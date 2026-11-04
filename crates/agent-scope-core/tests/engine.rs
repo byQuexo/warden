@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use std::sync::Arc;
 
 use agent_scope_core::constraint::Tri;
@@ -12,17 +13,11 @@ fn engine() -> Engine {
 }
 
 fn henrik() -> Principal {
-    Principal::new(
-        Subject::user("henrik").with_roles(["hr-lead"]).with_attr("org_unit", AttrValue::String("hr".into())),
-        "acme-bot",
-    )
+    Principal::new(Subject::user("henrik").with_roles(["hr-lead"]).with_attr("org_unit", AttrValue::String("hr".into())), "acme-bot")
 }
 
 fn sven() -> Principal {
-    Principal::new(
-        Subject::user("sven").with_roles(["sales-rep"]).with_attr("tenants", AttrValue::List(vec!["dach".into()])),
-        "acme-bot",
-    )
+    Principal::new(Subject::user("sven").with_roles(["sales-rep"]).with_attr("tenants", AttrValue::List(vec!["dach".into()])), "acme-bot")
 }
 
 #[test]

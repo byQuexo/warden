@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use agent_scope_core::constraint::Cond;
 use agent_scope_core::Engine;
 use agent_scope_eval::generate::generate;
@@ -22,7 +23,8 @@ fn reference_suite_passes_with_full_coverage_and_no_surviving_mutants() {
     }
     let mutants = mutate(e.policy(), e.catalog(), None, std::slice::from_ref(&suite)).unwrap();
     let rules: Vec<(String, bool)> = e.rules().iter().map(|r| (r.id.clone(), !matches!(r.cond, Cond::Always))).collect();
-    let report = EvalReport::build(e.version(), &rules, results, Some(mutants), &GateConfig { require_rule_coverage: true, baseline: None });
+    let report =
+        EvalReport::build(e.version(), &rules, results, Some(mutants), &GateConfig { require_rule_coverage: true, baseline: None });
     println!("{}", report.to_markdown());
     assert!(report.passed(), "gates failed");
 }
@@ -40,7 +42,10 @@ fn generated_attacks_all_denied() {
 #[test]
 fn a_broken_policy_is_caught() {
     // Widen the sales role: the reference suite must notice (scope_violation > 0).
-    let broken = POLICY.replace("sales-rep:   [crm:read, crm:write, \"docs:sales\"]", "sales-rep:   [crm:read, crm:write, crm:export, \"docs:sales\", \"docs:it\"]");
+    let broken = POLICY.replace(
+        "sales-rep:   [crm:read, crm:write, \"docs:sales\"]",
+        "sales-rep:   [crm:read, crm:write, crm:export, \"docs:sales\", \"docs:it\"]",
+    );
     let e = Engine::builder().policy_yaml(&broken).catalog_yaml(CATALOG).build().unwrap();
     let suite = Suite::from_yaml_str(SUITE).unwrap();
     let report = EvalReport::build(e.version(), &[], run_cases(&e, &suite), None, &GateConfig::default());

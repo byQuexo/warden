@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -19,7 +20,8 @@ fn lint_and_eval_the_reference_policy() {
     let acme = root().join("examples/acme");
     let (code, out) = run(bin().current_dir(&acme).arg("lint").arg("--strict"));
     assert_eq!(code, 0, "{out}");
-    let (code, out) = run(bin().current_dir(&acme).args(["eval", "--suite", "eval/reference.yaml", "--generate", "--mutate", "--coverage", "--gate"]));
+    let (code, out) =
+        run(bin().current_dir(&acme).args(["eval", "--suite", "eval/reference.yaml", "--generate", "--mutate", "--coverage", "--gate"]));
     assert_eq!(code, 0, "{out}");
     assert!(out.contains("all gates green"));
 }
@@ -54,10 +56,26 @@ fn eval_gate_fails_on_a_weakened_policy() {
 fn explain_prints_a_trace_and_exit_code_reflects_the_effect() {
     let acme = root().join("examples/acme");
     let principal = r#"{"subject":{"id":"henrik","roles":["hr-lead"],"attrs":{"org_unit":"hr"}},"agent":"acme-bot"}"#;
-    let (code, out) = run(bin().current_dir(&acme).args(["explain", "--principal", principal, "--action", "tool:hr.get_salary", "--args", r#"{"unit":"sales"}"#]));
+    let (code, out) = run(bin().current_dir(&acme).args([
+        "explain",
+        "--principal",
+        principal,
+        "--action",
+        "tool:hr.get_salary",
+        "--args",
+        r#"{"unit":"sales"}"#,
+    ]));
     assert_eq!(code, 1);
     assert!(out.contains("rule:   salary-only-own-unit"), "{out}");
-    let (code, _) = run(bin().current_dir(&acme).args(["explain", "--principal", principal, "--action", "tool:hr.get_salary", "--args", r#"{"unit":"hr"}"#]));
+    let (code, _) = run(bin().current_dir(&acme).args([
+        "explain",
+        "--principal",
+        principal,
+        "--action",
+        "tool:hr.get_salary",
+        "--args",
+        r#"{"unit":"hr"}"#,
+    ]));
     assert_eq!(code, 0);
 }
 
@@ -66,7 +84,8 @@ fn init_creates_a_working_starter_policy() {
     let dir = tempfile::tempdir().unwrap();
     let (code, out) = run(bin().arg("init").arg(dir.path()));
     assert_eq!(code, 0, "{out}");
-    let (code, out) = run(bin().current_dir(dir.path()).args(["eval", "--suite", "scenarios.yaml", "--generate", "--mutate", "--coverage", "--gate"]));
+    let (code, out) =
+        run(bin().current_dir(dir.path()).args(["eval", "--suite", "scenarios.yaml", "--generate", "--mutate", "--coverage", "--gate"]));
     assert_eq!(code, 0, "{out}");
 }
 
@@ -79,8 +98,18 @@ fn audit_keygen_and_dev_token() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("sts.yaml"), "issuer: http://127.0.0.1:9400\nkey_file: key.pem\n").unwrap();
     let (code, out) = run(bin().args([
-        "dev", "token", "--config", dir.path().join("sts.yaml").to_str().unwrap(),
-        "--subject", "sam", "--agent", "helpdesk-bot", "--roles", "support", "--audience", "http://127.0.0.1:8088/mcp",
+        "dev",
+        "token",
+        "--config",
+        dir.path().join("sts.yaml").to_str().unwrap(),
+        "--subject",
+        "sam",
+        "--agent",
+        "helpdesk-bot",
+        "--roles",
+        "support",
+        "--audience",
+        "http://127.0.0.1:8088/mcp",
     ]));
     assert_eq!(code, 0, "{out}");
     let jwt = out.lines().next().unwrap_or("").trim();

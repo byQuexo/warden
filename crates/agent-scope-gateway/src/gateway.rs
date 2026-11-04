@@ -147,10 +147,7 @@ impl GatewayBuilder {
         self
     }
     pub fn upstream(mut self, name: &str, url: &str, auth: UpstreamAuth, resource_prefixes: Vec<String>) -> Self {
-        self.upstreams.insert(
-            name.to_string(),
-            Upstream { name: name.to_string(), client: McpClient::new(url), auth, resource_prefixes },
-        );
+        self.upstreams.insert(name.to_string(), Upstream { name: name.to_string(), client: McpClient::new(url), auth, resource_prefixes });
         self
     }
     pub fn approver(mut self, a: Arc<dyn Approver>) -> Self {

@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  rust:
+    name: Rust · fmt, clippy, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked
+      - name: Unit, integration and end-to-end tests
+        run: cargo test --workspace --locked
+
+  security-eval:
+    name: Security eval gates
+    runs-on: ubuntu-latest
+    needs: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --locked -p agent-scope-cli
+      - name: Lint example policies (warnings are errors)
+        run: |
+          (cd examples/acme && ../../target/release/agent-scope lint --strict)
+          (cd examples/minimal && ../../target/release/agent-scope lint --strict)
+      - name: Reference suite + generated attacks + mutation testing
+        working-directory: examples/acme
+        run: |
+          ../../target/release/agent-scope eval --suite eval/reference.yaml --generate --mutate --coverage \
+            --report "$RUNNER_TEMP/security-eval.md" --json "$RUNNER_TEMP/security-eval.json" --gate
+          cat "$RUNNER_TEMP/security-eval.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-eval
+          path: ${{ runner.temp }}/security-eval.*
+
+  typescript:
+    name: TypeScript · WASM build + conformance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.130
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/agent-scope/package-lock.json
+      - working-directory: packages/agent-scope
+        run: |
+          npm ci
+          npm run build:wasm
+          npm test
+          echo "WASM size: $(npm run -s size)" >> "$GITHUB_STEP_SUMMARY"
+
+  acme-stack:
+    name: Docker · Keycloak reference stack
+    runs-on: ubuntu-latest
+    needs: rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke test (real Keycloak tokens through the gateway)
+        run: KEEP=0 ./examples/acme/smoke.sh
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f examples/acme/compose.yaml logs --no-color | tail -200

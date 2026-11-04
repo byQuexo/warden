@@ -173,10 +173,7 @@ fn compile_op(key: &str, v: &Value) -> Result<Op, String> {
             if !(p.starts_with('^') && p.ends_with('$')) {
                 return Err(format!("regex `{p}` must be anchored with ^…$"));
             }
-            let re = RegexBuilder::new(p)
-                .size_limit(1 << 20)
-                .build()
-                .map_err(|e| format!("invalid regex `{p}`: {e}"))?;
+            let re = RegexBuilder::new(p).size_limit(1 << 20).build().map_err(|e| format!("invalid regex `{p}`: {e}"))?;
             Op::Regex(re)
         }
         "min" => Op::Min(num(v)?),
@@ -243,7 +240,11 @@ impl Cond {
                         Tri::True => {}
                     }
                 }
-                if all { Tri::True } else { Tri::False }
+                if all {
+                    Tri::True
+                } else {
+                    Tri::False
+                }
             }
             Cond::Any(cs) => {
                 let mut any = false;
@@ -254,7 +255,11 @@ impl Cond {
                         Tri::False => {}
                     }
                 }
-                if any { Tri::True } else { Tri::False }
+                if any {
+                    Tri::True
+                } else {
+                    Tri::False
+                }
             }
             Cond::Check(c) => c.eval(env),
         }
@@ -276,11 +281,7 @@ impl Cond {
         match self {
             Cond::Always => vec![],
             Cond::All(cs) | Cond::Any(cs) => cs.iter().flat_map(Cond::custom_names).collect(),
-            Cond::Check(c) => c
-                .ops
-                .iter()
-                .filter_map(|o| if let Op::Custom(n) = o { Some(n.clone()) } else { None })
-                .collect(),
+            Cond::Check(c) => c.ops.iter().filter_map(|o| if let Op::Custom(n) = o { Some(n.clone()) } else { None }).collect(),
         }
     }
 
@@ -360,25 +361,17 @@ fn resolve(o: &Operand, env: &Env) -> Result<Value, String> {
         Operand::Placeholder(p) => match p {
             Placeholder::SubjectId => Ok(Value::String(env.principal.subject.id.clone())),
             Placeholder::AgentId => Ok(Value::String(env.principal.agent.clone())),
-            Placeholder::SubjectAttr(k) => env
-                .principal
-                .subject
-                .attrs
-                .get(k)
-                .map(attr_to_value)
-                .ok_or_else(|| format!("subject attribute `{k}` is missing")),
-            Placeholder::Context(k) => {
-                env.ctx.values.get(k).map(attr_to_value).ok_or_else(|| format!("context value `{k}` is missing"))
+            Placeholder::SubjectAttr(k) => {
+                env.principal.subject.attrs.get(k).map(attr_to_value).ok_or_else(|| format!("subject attribute `{k}` is missing"))
             }
+            Placeholder::Context(k) => env.ctx.values.get(k).map(attr_to_value).ok_or_else(|| format!("context value `{k}` is missing")),
         },
     }
 }
 
 fn clean_str<'v>(v: &'v Value, op: &str) -> Result<&'v str, Tri> {
     match v {
-        Value::String(s) if has_invisible_chars(s) => {
-            Err(Tri::Unknown(format!("`{op}`: value contains control or invisible characters")))
-        }
+        Value::String(s) if has_invisible_chars(s) => Err(Tri::Unknown(format!("`{op}`: value contains control or invisible characters"))),
         Value::String(s) => Ok(s),
         other => Err(Tri::Unknown(format!("`{op}` expects a string, got {}", type_name(other)))),
     }

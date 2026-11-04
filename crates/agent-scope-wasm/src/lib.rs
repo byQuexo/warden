@@ -91,7 +91,12 @@ pub fn principal_from_claims_js(identity_yaml: &str, claims_json: &str, now: f64
 #[wasm_bindgen(js_name = identityIssuers)]
 pub fn identity_issuers(identity_yaml: &str) -> Result<String, JsValue> {
     let cfg = IdentityConfig::from_yaml_str(identity_yaml).map_err(err)?;
-    Ok(json!(cfg.issuers.iter().map(|i| json!({"issuer": i.issuer, "audience": i.audience, "algorithms": i.algorithms, "jwks_uri": i.jwks_uri})).collect::<Vec<_>>()).to_string())
+    Ok(json!(cfg
+        .issuers
+        .iter()
+        .map(|i| json!({"issuer": i.issuer, "audience": i.audience, "algorithms": i.algorithms, "jwks_uri": i.jwks_uri}))
+        .collect::<Vec<_>>())
+    .to_string())
 }
 
 #[wasm_bindgen]

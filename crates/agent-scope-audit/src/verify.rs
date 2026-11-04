@@ -125,7 +125,7 @@ pub fn verify_dir(dir: &Path, pubkey: Option<&VerifyingKey>, max_unanchored: u64
 mod tests {
     use super::*;
     use crate::sink::{AuditSink, JsonlConfig, JsonlSink};
-    use crate::{signing_key_from_b64, generate_signing_key, verifying_key_from_b64};
+    use crate::{generate_signing_key, signing_key_from_b64, verifying_key_from_b64};
     use serde_json::json;
 
     fn write_chain(dir: &Path, n: usize) -> VerifyingKey {
@@ -210,7 +210,8 @@ mod tests {
         let d = tempfile::tempdir().unwrap();
         let pk = write_chain(d.path(), 3);
         // A second writer with a different key would break verification, so reuse is checked by seq only.
-        let sink = JsonlSink::open(JsonlConfig { dir: d.path().into(), chain: "gw-1".into(), signing_key: None, checkpoint_every: 100 }).unwrap();
+        let sink =
+            JsonlSink::open(JsonlConfig { dir: d.path().into(), chain: "gw-1".into(), signing_key: None, checkpoint_every: 100 }).unwrap();
         sink.record("decision", json!({})).unwrap();
         let r = verify_dir(d.path(), Some(&pk), 10).unwrap();
         assert_eq!(r.chains["gw-1"].events, 5);

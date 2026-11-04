@@ -208,10 +208,7 @@ impl Sts {
             let (i, p) = s.split_once(':').ok_or_else(unauthorized)?;
             (i.to_string(), p.to_string())
         } else {
-            (
-                form.get("client_id").cloned().ok_or_else(unauthorized)?,
-                form.get("client_secret").cloned().ok_or_else(unauthorized)?,
-            )
+            (form.get("client_id").cloned().ok_or_else(unauthorized)?, form.get("client_secret").cloned().ok_or_else(unauthorized)?)
         };
         let def = self.cfg.clients.get(&id).ok_or_else(unauthorized)?;
         if !constant_time_eq(def.secret.as_bytes(), secret.as_bytes()) {
@@ -227,7 +224,11 @@ impl Sts {
         let requested_aud = form.get("audience").or_else(|| form.get("resource")).cloned();
         if let Some(aud) = &requested_aud {
             if !client.may_exchange_to.is_empty() && !client.may_exchange_to.contains(aud) {
-                return Err(StsError::new(StatusCode::BAD_REQUEST, "invalid_target", format!("`{client_id}` may not request audience `{aud}`")));
+                return Err(StsError::new(
+                    StatusCode::BAD_REQUEST,
+                    "invalid_target",
+                    format!("`{client_id}` may not request audience `{aud}`"),
+                ));
             }
         }
         let requested_scopes: Option<Vec<String>> =
@@ -244,9 +245,9 @@ impl Sts {
                 "exp": now + self.cfg.token_ttl_s,
             }),
             TOKEN_EXCHANGE_GRANT => {
-                let st = form.get("subject_token").ok_or_else(|| {
-                    StsError::new(StatusCode::BAD_REQUEST, "invalid_request", "subject_token is required")
-                })?;
+                let st = form
+                    .get("subject_token")
+                    .ok_or_else(|| StsError::new(StatusCode::BAD_REQUEST, "invalid_request", "subject_token is required"))?;
                 let subject = self.verify_subject(st).await?;
                 let azp = subject.get("azp").and_then(Value::as_str).unwrap_or("").to_string();
                 let auds: Vec<String> = match subject.get("aud") {
@@ -256,7 +257,11 @@ impl Sts {
                 };
                 let holder = azp == client_id;
                 if !holder && !auds.iter().any(|a| client.accept_audiences.contains(a)) {
-                    return Err(StsError::new(StatusCode::FORBIDDEN, "unauthorized_client", format!("`{client_id}` may not exchange this token")));
+                    return Err(StsError::new(
+                        StatusCode::FORBIDDEN,
+                        "unauthorized_client",
+                        format!("`{client_id}` may not exchange this token"),
+                    ));
                 }
                 let mut out = match subject {
                     Value::Object(m) => m,
@@ -271,7 +276,11 @@ impl Sts {
                     }
                     if let Some(check) = &self.delegation {
                         if !check(&client_id, target) {
-                            return Err(StsError::new(StatusCode::FORBIDDEN, "unauthorized_client", format!("`{client_id}` may not delegate to `{target}`")));
+                            return Err(StsError::new(
+                                StatusCode::FORBIDDEN,
+                                "unauthorized_client",
+                                format!("`{client_id}` may not delegate to `{target}`"),
+                            ));
                         }
                     }
                     let prev_act = out.remove("act");
@@ -286,11 +295,8 @@ impl Sts {
                     out.insert("aud".into(), json!(aud));
                 }
                 if let Some(req) = requested_scopes {
-                    let have: Vec<String> = out
-                        .get("scope")
-                        .and_then(Value::as_str)
-                        .map(|s| s.split(' ').map(str::to_string).collect())
-                        .unwrap_or_default();
+                    let have: Vec<String> =
+                        out.get("scope").and_then(Value::as_str).map(|s| s.split(' ').map(str::to_string).collect()).unwrap_or_default();
                     let narrowed: Vec<String> = req.into_iter().filter(|s| have.contains(s)).collect();
                     out.insert("scope".into(), json!(narrowed.join(" ")));
                 }

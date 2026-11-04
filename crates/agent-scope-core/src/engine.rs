@@ -187,10 +187,8 @@ pub fn compile_rules(policy: &Policy) -> (Vec<CompiledRule>, Vec<Finding>) {
     let mut findings = Vec::new();
     for r in &policy.rules {
         let Some((kind, v)) = r.condition() else {
-            findings.push(Finding::error(
-                "rule.condition",
-                format!("rule `{}` must have exactly one of require / approve_if / deny_if", r.id),
-            ));
+            findings
+                .push(Finding::error("rule.condition", format!("rule `{}` must have exactly one of require / approve_if / deny_if", r.id)));
             continue;
         };
         let cond = match constraint::compile(v) {
@@ -361,11 +359,7 @@ impl Engine {
         let mut chain: Vec<&str> = p.act.iter().map(String::as_str).collect();
         chain.push(&p.agent);
         for w in chain.windows(2) {
-            let allowed = self
-                .policy
-                .agents
-                .get(w[0])
-                .is_some_and(|a| a.delegation.may_delegate_to.iter().any(|t| t == w[1]));
+            let allowed = self.policy.agents.get(w[0]).is_some_and(|a| a.delegation.may_delegate_to.iter().any(|t| t == w[1]));
             if !allowed {
                 return Err(("principal.delegation", format!("`{}` may not delegate to `{}`", w[0], w[1])));
             }
@@ -380,18 +374,12 @@ impl Engine {
     }
 
     fn scope_granted(&self, p: &Principal, scope: &str) -> Result<(), String> {
-        let by_role = p
-            .subject
-            .roles
-            .iter()
-            .filter_map(|r| self.policy.roles.get(r))
-            .any(|scopes| scopes.iter().any(|s| scope_matches(s, scope)));
+        let by_role =
+            p.subject.roles.iter().filter_map(|r| self.policy.roles.get(r)).any(|scopes| scopes.iter().any(|s| scope_matches(s, scope)));
         if !by_role {
             return Err(format!("no role of `{}` grants `{scope}`", p.subject.id));
         }
-        let agent_max = |a: &str| {
-            self.policy.agents.get(a).is_some_and(|d| d.max.iter().any(|s| scope_matches(s, scope)))
-        };
+        let agent_max = |a: &str| self.policy.agents.get(a).is_some_and(|d| d.max.iter().any(|s| scope_matches(s, scope)));
         if !agent_max(&p.agent) {
             return Err(format!("agent `{}` max does not include `{scope}`", p.agent));
         }
@@ -440,7 +428,12 @@ impl Engine {
         t.push(
             "principal",
             "ok",
-            format!("subject={} agent={}{}", p.subject.id, p.agent, if p.act.is_empty() { String::new() } else { format!(" act={}", p.act.join(">")) }),
+            format!(
+                "subject={} agent={}{}",
+                p.subject.id,
+                p.agent,
+                if p.act.is_empty() { String::new() } else { format!(" act={}", p.act.join(">")) }
+            ),
         );
 
         // 3. kill switch (all)

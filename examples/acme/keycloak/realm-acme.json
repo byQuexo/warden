@@ -1,0 +1,430 @@
+{
+  "realm": "acme",
+  "enabled": true,
+  "accessTokenLifespan": 300,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      {
+        "name": "hr-member",
+        "description": "Acme hr-member"
+      },
+      {
+        "name": "hr-lead",
+        "description": "Acme hr-lead"
+      },
+      {
+        "name": "it-member",
+        "description": "Acme it-member"
+      },
+      {
+        "name": "it-admin",
+        "description": "Acme it-admin"
+      },
+      {
+        "name": "sales-rep",
+        "description": "Acme sales-rep"
+      },
+      {
+        "name": "sales-lead",
+        "description": "Acme sales-lead"
+      },
+      {
+        "name": "finance",
+        "description": "Acme finance"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "hanna",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "hanna@acme.test",
+      "firstName": "Hanna",
+      "lastName": "Acme",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "hr-member"
+      ],
+      "attributes": {
+        "org_unit": [
+          "hr"
+        ]
+      }
+    },
+    {
+      "username": "henrik",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "henrik@acme.test",
+      "firstName": "Henrik",
+      "lastName": "Acme",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "hr-lead"
+      ],
+      "attributes": {
+        "org_unit": [
+          "hr"
+        ]
+      }
+    },
+    {
+      "username": "ivo",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "ivo@acme.test",
+      "firstName": "Ivo",
+      "lastName": "Acme",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "it-member"
+      ],
+      "attributes": {
+        "org_unit": [
+          "it"
+        ]
+      }
+    },
+    {
+      "username": "ines",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "ines@acme.test",
+      "firstName": "Ines",
+      "lastName": "Acme",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "it-admin"
+      ],
+      "attributes": {
+        "org_unit": [
+          "it"
+        ]
+      }
+    },
+    {
+      "username": "sven",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "sven@acme.test",
+      "firstName": "Sven",
+      "lastName": "Acme",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "sales-rep"
+      ],
+      "attributes": {
+        "org_unit": [
+          "sales"
+        ],
+        "tenants": [
+          "dach"
+        ]
+      }
+    },
+    {
+      "username": "sara",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "sara@acme.test",
+      "firstName": "Sara",
+      "lastName": "Acme",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "sales-lead"
+      ],
+      "attributes": {
+        "org_unit": [
+          "sales"
+        ],
+        "tenants": [
+          "dach",
+          "enterprise"
+        ]
+      }
+    },
+    {
+      "username": "fiona",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "fiona@acme.test",
+      "firstName": "Fiona",
+      "lastName": "Acme",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "finance"
+      ],
+      "attributes": {
+        "org_unit": [
+          "finance"
+        ]
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "acme-bot",
+      "name": "acme-bot",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "dev-bot-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "gateway-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "http://localhost:8088/mcp",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "org_unit",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "org_unit",
+            "claim.name": "org_unit",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenants",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenants",
+            "claim.name": "tenants",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "acme-research",
+      "name": "acme-research",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "dev-research-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "gateway-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "http://localhost:8088/mcp",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "org_unit",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "org_unit",
+            "claim.name": "org_unit",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenants",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenants",
+            "claim.name": "tenants",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "acme-action",
+      "name": "acme-action",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "dev-action-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "gateway-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "http://localhost:8088/mcp",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "org_unit",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "org_unit",
+            "claim.name": "org_unit",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenants",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenants",
+            "claim.name": "tenants",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "agent-scope-gw",
+      "name": "agent-scope gateway",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "dev-gw-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "acme-console",
+      "name": "Acme console",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"email\", \"displayName\": \"${email}\", \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"validations\": {\"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"validations\": {\"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"org_unit\", \"displayName\": \"Org unit\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}, \"multivalued\": false}, {\"name\": \"tenants\", \"displayName\": \"Tenants\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}, \"multivalued\": true}], \"groups\": [], \"unmanagedAttributePolicy\": \"ENABLED\"}"
+          ]
+        }
+      }
+    ]
+  }
+}

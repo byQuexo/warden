@@ -62,8 +62,14 @@ fn default_reload() -> u64 {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "resolver", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum AttributesCfg {
-    Static { file: String },
-    Http { url: String, #[serde(default = "default_cache")] cache_s: u64 },
+    Static {
+        file: String,
+    },
+    Http {
+        url: String,
+        #[serde(default = "default_cache")]
+        cache_s: u64,
+    },
 }
 
 fn default_cache() -> u64 {
@@ -110,9 +116,26 @@ pub struct UpstreamCfg {
 pub enum UpstreamAuthCfg {
     #[default]
     None,
-    Static { token_env: String },
-    ClientCredentials { token_url: String, client_id: String, secret_env: String, #[serde(default)] audience: Option<String>, #[serde(default)] scope: Option<String> },
-    TokenExchange { token_url: String, client_id: String, secret_env: String, audience: String, #[serde(default)] scope: Option<String> },
+    Static {
+        token_env: String,
+    },
+    ClientCredentials {
+        token_url: String,
+        client_id: String,
+        secret_env: String,
+        #[serde(default)]
+        audience: Option<String>,
+        #[serde(default)]
+        scope: Option<String>,
+    },
+    TokenExchange {
+        token_url: String,
+        client_id: String,
+        secret_env: String,
+        audience: String,
+        #[serde(default)]
+        scope: Option<String>,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -160,7 +183,15 @@ fn d_sink_err() -> String {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum SinkCfg {
-    Jsonl { dir: String, #[serde(default = "d_chain")] chain: String, #[serde(default)] checkpoint_key_env: Option<String>, #[serde(default = "d_every")] checkpoint_every: u64 },
+    Jsonl {
+        dir: String,
+        #[serde(default = "d_chain")]
+        chain: String,
+        #[serde(default)]
+        checkpoint_key_env: Option<String>,
+        #[serde(default = "d_every")]
+        checkpoint_every: u64,
+    },
     Stdout,
     Tracing,
 }
@@ -238,7 +269,11 @@ impl GatewayConfig {
             .engine(engine)
             .verifier(Verifier::new(identity))
             .public_url(self.public_url.clone())
-            .limits(Limits { request_bytes: self.limits.request_bytes, result_bytes: self.limits.result_bytes, json_depth: self.limits.json_depth })
+            .limits(Limits {
+                request_bytes: self.limits.request_bytes,
+                result_bytes: self.limits.result_bytes,
+                json_depth: self.limits.json_depth,
+            })
             .approval_timeout(Duration::from_millis(self.approval.timeout_ms))
             .progress_interval(Duration::from_millis(self.approval.progress_interval_ms));
 
@@ -262,13 +297,15 @@ impl GatewayConfig {
             let auth = match &u.auth {
                 UpstreamAuthCfg::None => UpstreamAuth::None,
                 UpstreamAuthCfg::Static { token_env } => UpstreamAuth::Static(env(token_env)?),
-                UpstreamAuthCfg::ClientCredentials { token_url, client_id, secret_env, audience, scope } => UpstreamAuth::ClientCredentials {
-                    token_url: token_url.clone(),
-                    client_id: client_id.clone(),
-                    secret: env(secret_env)?,
-                    audience: audience.clone(),
-                    scope: scope.clone(),
-                },
+                UpstreamAuthCfg::ClientCredentials { token_url, client_id, secret_env, audience, scope } => {
+                    UpstreamAuth::ClientCredentials {
+                        token_url: token_url.clone(),
+                        client_id: client_id.clone(),
+                        secret: env(secret_env)?,
+                        audience: audience.clone(),
+                        scope: scope.clone(),
+                    }
+                }
                 UpstreamAuthCfg::TokenExchange { token_url, client_id, secret_env, audience, scope } => UpstreamAuth::TokenExchange {
                     token_url: token_url.clone(),
                     client_id: client_id.clone(),
@@ -297,13 +334,26 @@ impl GatewayConfig {
                 SinkCfg::Stdout => Arc::new(StdoutSink),
                 SinkCfg::Tracing => Arc::new(TracingSink),
                 SinkCfg::Jsonl { dir, chain, checkpoint_key_env, checkpoint_every } => {
-                    let key = checkpoint_key_env.as_deref().map(env).transpose()?.map(|k| signing_key_from_b64(&k)).transpose().map_err(|e| GatewayError::Config(e.to_string()))?;
+                    let key = checkpoint_key_env
+                        .as_deref()
+                        .map(env)
+                        .transpose()?
+                        .map(|k| signing_key_from_b64(&k))
+                        .transpose()
+                        .map_err(|e| GatewayError::Config(e.to_string()))?;
                     if key.is_none() && !dev {
-                        return Err(GatewayError::Config("jsonl audit sink needs checkpoint_key_env (signed checkpoints) outside --dev".into()));
+                        return Err(GatewayError::Config(
+                            "jsonl audit sink needs checkpoint_key_env (signed checkpoints) outside --dev".into(),
+                        ));
                     }
                     Arc::new(
-                        JsonlSink::open(JsonlConfig { dir: rel(dir), chain: chain.clone(), signing_key: key, checkpoint_every: *checkpoint_every })
-                            .map_err(|e| GatewayError::Config(e.to_string()))?,
+                        JsonlSink::open(JsonlConfig {
+                            dir: rel(dir),
+                            chain: chain.clone(),
+                            signing_key: key,
+                            checkpoint_every: *checkpoint_every,
+                        })
+                        .map_err(|e| GatewayError::Config(e.to_string()))?,
                     )
                 }
             });

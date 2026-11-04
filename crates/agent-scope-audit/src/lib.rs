@@ -16,9 +16,7 @@
 mod sink;
 mod verify;
 
-pub use sink::{
-    args_hmac, AuditError, AuditSink, JsonlConfig, JsonlSink, MemorySink, MultiSink, StdoutSink, TracingSink,
-};
+pub use sink::{args_hmac, AuditError, AuditSink, JsonlConfig, JsonlSink, MemorySink, MultiSink, StdoutSink, TracingSink};
 pub use verify::{verify_dir, VerifyError, VerifyReport};
 
 use base64::Engine as _;
@@ -32,17 +30,13 @@ pub fn generate_signing_key() -> (String, String) {
 }
 
 pub fn signing_key_from_b64(s: &str) -> Result<SigningKey, AuditError> {
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(s.trim())
-        .map_err(|e| AuditError::Config(format!("signing key: {e}")))?;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(s.trim()).map_err(|e| AuditError::Config(format!("signing key: {e}")))?;
     let arr: [u8; 32] = bytes.try_into().map_err(|_| AuditError::Config("signing key must be 32 bytes".into()))?;
     Ok(SigningKey::from_bytes(&arr))
 }
 
 pub fn verifying_key_from_b64(s: &str) -> Result<VerifyingKey, AuditError> {
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(s.trim())
-        .map_err(|e| AuditError::Config(format!("public key: {e}")))?;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(s.trim()).map_err(|e| AuditError::Config(format!("public key: {e}")))?;
     let arr: [u8; 32] = bytes.try_into().map_err(|_| AuditError::Config("public key must be 32 bytes".into()))?;
     VerifyingKey::from_bytes(&arr).map_err(|e| AuditError::Config(format!("public key: {e}")))
 }

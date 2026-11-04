@@ -213,8 +213,5 @@ impl McpClient {
 }
 
 fn describe(messages: &[Value]) -> String {
-    messages
-        .iter()
-        .find_map(|m| m.pointer("/error/message").and_then(Value::as_str).map(str::to_string))
-        .unwrap_or_default()
+    messages.iter().find_map(|m| m.pointer("/error/message").and_then(Value::as_str).map(str::to_string)).unwrap_or_default()
 }
