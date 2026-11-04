@@ -1,3 +1,5 @@
+> Hinweis: Das Projekt heißt inzwischen **Warden**; dieser Originalplan verwendet noch den Arbeitsnamen `agent-scope`.
+
 # agent-scope: Bauplan (generisches Autorisierungs-Framework für Agenten)
 
 > Nur Plan, gebaut wird mit Claude Code. Stand: 04.11.2026 (Rev. 3). Ersetzt die RBAC-Teile aus `agent-scope/PLAN.md` (TS-Lib) und `agent-scope-next/PLAN.md`. Der Acme Company Bot (`plans/company-bot/PLAN.md`) ist ab Rev. 3 **ein Konsument von vielen**, nicht der Zielkunde.

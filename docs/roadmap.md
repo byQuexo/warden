@@ -1,6 +1,6 @@
 # Status and roadmap
 
-agent-scope is **0.1**: complete enough to run and evaluate end to end, not yet battle-tested
+Warden is **0.1**: complete enough to run and evaluate end to end, not yet battle-tested
 in production. The original design document (German) is in [design/plan-de.md](design/plan-de.md).
 
 ## Implemented

@@ -1,4 +1,4 @@
-# Gateway config for the compose stack (paths relative to this file, mounted at /etc/agent-scope).
+# Gateway config for the compose stack (paths relative to this file, mounted at /etc/warden).
 listen: 0.0.0.0:8088
 admin_listen: 0.0.0.0:8089
 admin_token_env: ADMIN_TOKEN
@@ -11,10 +11,10 @@ upstreams:
   # never with the user's token.
   hr:
     url: http://hr:9000/mcp
-    auth: { strategy: client-credentials, token_url: http://keycloak:8080/realms/acme/protocol/openid-connect/token, client_id: agent-scope-gw, secret_env: GW_CLIENT_SECRET }
+    auth: { strategy: client-credentials, token_url: http://keycloak:8080/realms/acme/protocol/openid-connect/token, client_id: warden-gw, secret_env: GW_CLIENT_SECRET }
   crm:
     url: http://crm:9000/mcp
-    auth: { strategy: client-credentials, token_url: http://keycloak:8080/realms/acme/protocol/openid-connect/token, client_id: agent-scope-gw, secret_env: GW_CLIENT_SECRET }
+    auth: { strategy: client-credentials, token_url: http://keycloak:8080/realms/acme/protocol/openid-connect/token, client_id: warden-gw, secret_env: GW_CLIENT_SECRET }
   docs:
     url: http://docs:9000/mcp
     resources: ["docs://"]
@@ -26,8 +26,8 @@ approval:
 
 audit:
   sinks:
-    - { type: jsonl, dir: /var/lib/agent-scope/audit, chain: gw-1, checkpoint_every: 20 }
+    - { type: jsonl, dir: /var/lib/warden/audit, chain: gw-1, checkpoint_every: 20 }
     - { type: stdout }
   hmac_key_env: AUDIT_HMAC_KEY
 
-kill_switch: { file: /var/lib/agent-scope/kill }
+kill_switch: { file: /var/lib/warden/kill }

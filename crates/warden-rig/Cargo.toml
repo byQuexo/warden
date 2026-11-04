@@ -1,0 +1,27 @@
+[package]
+name = "warden-rig"
+description = "warden for rig agents: an AgentHook that checks every tool call against policy (second line of defense next to the gateway)."
+version.workspace = true
+edition.workspace = true
+# rig-agent 0.46 requires a recent toolchain.
+rust-version = "1.97"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+warden-core.workspace = true
+warden-audit.workspace = true
+warden-gateway.workspace = true
+serde_json.workspace = true
+rig-agent = { version = "=0.46.0", default-features = false }
+rig-core = { version = "=0.46.0", default-features = false }
+
+[dev-dependencies]
+rig-agent = { version = "=0.46.0", default-features = false, features = ["test-utils"] }
+tokio.workspace = true
+async-trait.workspace = true
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

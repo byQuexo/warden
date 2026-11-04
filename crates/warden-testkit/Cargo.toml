@@ -1,0 +1,21 @@
+[package]
+name = "warden-testkit"
+description = "Deterministic mock MCP upstreams and a mock approval webhook for warden tests and demos."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mock-mcp"
+path = "src/main.rs"
+
+[dependencies]
+warden-mcp.workspace = true
+serde_json.workspace = true
+axum.workspace = true
+tokio.workspace = true
+clap.workspace = true

@@ -1,7 +1,7 @@
-# agent-scope-gateway --config gateway.yaml --dev
+# warden-gateway --config gateway.yaml --dev
 listen: 127.0.0.1:8088
 admin_listen: 127.0.0.1:8089
-admin_token_env: AGENT_SCOPE_ADMIN_TOKEN
+admin_token_env: WARDEN_ADMIN_TOKEN
 public_url: http://127.0.0.1:8088/mcp
 identity: identity.yaml
 policy: { catalog: catalog.yaml, policy: policy.yaml, lock: catalog.lock }

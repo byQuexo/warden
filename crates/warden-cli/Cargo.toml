@@ -1,0 +1,33 @@
+[package]
+name = "warden-cli"
+description = "warden command line: lint, explain, eval, audit verify, catalog pinning, dev STS, demo."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "warden"
+path = "src/main.rs"
+
+[dependencies]
+warden-core.workspace = true
+warden-identity.workspace = true
+warden-audit.workspace = true
+warden-mcp.workspace = true
+warden-gateway.workspace = true
+warden-eval.workspace = true
+warden-testkit.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_norway.workspace = true
+clap.workspace = true
+tokio.workspace = true
+axum.workspace = true
+reqwest.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

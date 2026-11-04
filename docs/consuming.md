@@ -1,4 +1,4 @@
-# Using agent-scope
+# Using warden
 
 Three ways in, same engine.
 
@@ -7,10 +7,10 @@ Three ways in, same engine.
 Put the gateway between your agents and your MCP servers.
 
 ```bash
-agent-scope catalog pull --gateway gateway.yaml --dev   # discover tools, write catalog.lock + skeleton
+warden catalog pull --gateway gateway.yaml --dev   # discover tools, write catalog.lock + skeleton
 # classify tools in catalog.yaml (scopes, sensitivity, tags), write policy.yaml
-agent-scope lint && agent-scope eval --suite scenarios.yaml --generate --gate
-agent-scope-gateway --config gateway.yaml
+warden lint && warden eval --suite scenarios.yaml --generate --gate
+warden-gateway --config gateway.yaml
 ```
 
 Agents connect to `http://gateway:8088/mcp` with the user's access token (OAuth 2.0 bearer).
@@ -44,8 +44,8 @@ accept SSE receive `notifications/progress` while waiting.
 ## 2. Rust, in-process
 
 ```rust
-use agent_scope_core::{Action, Context, Effect, Engine};
-use agent_scope_identity::Verifier;
+use warden_core::{Action, Context, Effect, Engine};
+use warden_identity::Verifier;
 
 let engine = Engine::builder()
     .policy_yaml(include_str!("policy.yaml"))
@@ -53,7 +53,7 @@ let engine = Engine::builder()
     .build()?;                                     // lint errors = Err, never half-loaded
 
 let verifier = Verifier::new(identity_config);
-let principal = verifier.verify(bearer, agent_scope_identity::now_unix()).await?;
+let principal = verifier.verify(bearer, warden_identity::now_unix()).await?;
 
 let d = engine.check(&principal, &Action::tool("crm.update_deal", args), &Context::default());
 match d.effect {
@@ -69,9 +69,9 @@ model's tool list, and `engine.explain(…)` / `Decision::render()` for debuggin
 ## 3. TypeScript (WebAssembly)
 
 ```ts
-import { createScope, guard, verifyToken } from "agent-scope";
-import { withScope } from "agent-scope/mcp";
-import { scopeTools } from "agent-scope/ai-sdk";
+import { createScope, guard, verifyToken } from "warden";
+import { withScope } from "warden/mcp";
+import { scopeTools } from "warden/ai-sdk";
 
 const scope = createScope({ policyYaml, catalogYaml });
 const principal = await verifyToken(bearer, { identityYaml });
@@ -91,17 +91,17 @@ Build the package from source:
 ```bash
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.130
-cd packages/agent-scope && npm install && npm run build:wasm && npm test
+cd packages/warden && npm install && npm run build:wasm && npm test
 ```
 
 ## Extending
 
 * **Your IdP**: write a `mapping:` (JSON pointers) or add a preset YAML under
-  `crates/agent-scope-core/presets/` plus token vectors in `spec/vectors/tokens.yaml`.
-* **Attributes from a directory**: implement `agent_scope_identity::AttributeResolver`
+  `crates/warden-core/presets/` plus token vectors in `spec/vectors/tokens.yaml`.
+* **Attributes from a directory**: implement `warden_identity::AttributeResolver`
   (async) or use the HTTP resolver (`attributes: { resolver: http, url: …/{subject.id} }`).
-* **Audit destination**: implement `agent_scope_audit::AuditSink`; return an error to make the
+* **Audit destination**: implement `warden_audit::AuditSink`; return an error to make the
   gateway fail closed.
-* **Approvals**: implement `agent_scope_gateway::Approver` or speak the webhook protocol.
+* **Approvals**: implement `warden_gateway::Approver` or speak the webhook protocol.
 * **Custom argument checks**: `Engine::builder().custom("name", Arc::new(|v, p, ctx| Tri::True))`
   and `require: { arg: x, custom: name }` (Rust only; lint warns that the policy is not portable).

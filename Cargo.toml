@@ -1,17 +1,17 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/agent-scope-core",
-    "crates/agent-scope-identity",
-    "crates/agent-scope-audit",
-    "crates/agent-scope-mcp",
-    "crates/agent-scope-gateway",
-    "crates/agent-scope-eval",
-    "crates/agent-scope-cli",
-    "crates/agent-scope-testkit",
-    "crates/agent-scope-wasm",
-    "crates/agent-scope-rig",
-    "crates/agent-scope-a2a",
+    "crates/warden-core",
+    "crates/warden-identity",
+    "crates/warden-audit",
+    "crates/warden-mcp",
+    "crates/warden-gateway",
+    "crates/warden-eval",
+    "crates/warden-cli",
+    "crates/warden-testkit",
+    "crates/warden-wasm",
+    "crates/warden-rig",
+    "crates/warden-a2a",
 ]
 
 [workspace.package]
@@ -19,18 +19,18 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.82"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/byQuexo/agent-scope"
+repository = "https://github.com/byQuexo/warden"
 authors = ["Tim Gühnemann"]
 
 [workspace.dependencies]
-agent-scope-core = { path = "crates/agent-scope-core" }
-agent-scope-identity = { path = "crates/agent-scope-identity" }
-agent-scope-audit = { path = "crates/agent-scope-audit" }
-agent-scope-mcp = { path = "crates/agent-scope-mcp" }
-agent-scope-gateway = { path = "crates/agent-scope-gateway" }
-agent-scope-eval = { path = "crates/agent-scope-eval" }
-agent-scope-testkit = { path = "crates/agent-scope-testkit" }
-agent-scope-rig = { path = "crates/agent-scope-rig" }
+warden-core = { path = "crates/warden-core" }
+warden-identity = { path = "crates/warden-identity" }
+warden-audit = { path = "crates/warden-audit" }
+warden-mcp = { path = "crates/warden-mcp" }
+warden-gateway = { path = "crates/warden-gateway" }
+warden-eval = { path = "crates/warden-eval" }
+warden-testkit = { path = "crates/warden-testkit" }
+warden-rig = { path = "crates/warden-rig" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -64,7 +64,7 @@ tempfile = "3"
 panic = "unwind"
 
 # Small WebAssembly build for the npm package:
-#   cargo build --profile wasm --target wasm32-unknown-unknown -p agent-scope-wasm
+#   cargo build --profile wasm --target wasm32-unknown-unknown -p warden-wasm
 [profile.wasm]
 inherits = "release"
 opt-level = "z"

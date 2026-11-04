@@ -1,4 +1,4 @@
-# Local dev STS (agent-scope dev sts). Never use in production.
+# Local dev STS (warden dev sts). Never use in production.
 issuer: http://127.0.0.1:9400
 key_file: sts-key.pem
 clients:

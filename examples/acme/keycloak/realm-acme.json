@@ -384,8 +384,8 @@
       ]
     },
     {
-      "clientId": "agent-scope-gw",
-      "name": "agent-scope gateway",
+      "clientId": "warden-gw",
+      "name": "warden gateway",
       "enabled": true,
       "publicClient": false,
       "secret": "dev-gw-secret",

@@ -1,0 +1,28 @@
+[package]
+name = "warden-a2a"
+description = "warden for the Agent2Agent (A2A) protocol: per-caller skill filtering of agent cards and enforcement of message/task calls."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+warden-core.workspace = true
+warden-identity.workspace = true
+warden-audit.workspace = true
+warden-mcp.workspace = true
+serde_json.workspace = true
+axum.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+warden-testkit.workspace = true
+tokio.workspace = true
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

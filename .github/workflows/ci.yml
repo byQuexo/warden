@@ -33,15 +33,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release --locked -p agent-scope-cli
+      - run: cargo build --release --locked -p warden-cli
       - name: Lint example policies (warnings are errors)
         run: |
-          (cd examples/acme && ../../target/release/agent-scope lint --strict)
-          (cd examples/minimal && ../../target/release/agent-scope lint --strict)
+          (cd examples/acme && ../../target/release/warden lint --strict)
+          (cd examples/minimal && ../../target/release/warden lint --strict)
       - name: Reference suite + generated attacks + mutation testing
         working-directory: examples/acme
         run: |
-          ../../target/release/agent-scope eval --suite eval/reference.yaml --generate --mutate --coverage \
+          ../../target/release/warden eval --suite eval/reference.yaml --generate --mutate --coverage \
             --report "$RUNNER_TEMP/security-eval.md" --json "$RUNNER_TEMP/security-eval.json" --gate
           cat "$RUNNER_TEMP/security-eval.md" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
@@ -66,8 +66,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: packages/agent-scope/package-lock.json
-      - working-directory: packages/agent-scope
+          cache-dependency-path: packages/warden/package-lock.json
+      - working-directory: packages/warden
         run: |
           npm ci
           npm run build:wasm

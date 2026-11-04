@@ -1,0 +1,36 @@
+{
+  "name": "warden",
+  "version": "0.1.0",
+  "description": "Authorization for AI agents in TypeScript: the warden Rust engine compiled to WebAssembly, plus guards for tools, MCP servers and the Vercel AI SDK.",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/byQuexo/warden.git",
+    "directory": "packages/warden"
+  },
+  "keywords": ["ai", "agents", "authorization", "rbac", "mcp", "llm", "security", "wasm"],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./identity": "./dist/identity.js",
+    "./mcp": "./dist/mcp.js",
+    "./ai-sdk": "./dist/ai-sdk.js"
+  },
+  "files": ["dist/*.js", "dist/*.d.ts", "wasm/*"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build": "tsc -p .",
+    "test": "tsc -p . && node --test \"dist/test/*.test.js\"",
+    "size": "node -e \"console.log((require('fs').statSync('wasm/warden_wasm_bg.wasm').size/1024).toFixed(0)+' KiB')\""
+  },
+  "dependencies": {
+    "jose": "^5.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0",
+    "yaml": "^2.6.0"
+  }
+}

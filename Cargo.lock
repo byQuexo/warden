@@ -3,190 +3,6 @@
 version = 3
 
 [[package]]
-name = "agent-scope-a2a"
-version = "0.1.0"
-dependencies = [
- "agent-scope-audit",
- "agent-scope-core",
- "agent-scope-identity",
- "agent-scope-mcp",
- "agent-scope-testkit",
- "axum",
- "reqwest",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "agent-scope-audit"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "ed25519-dalek",
- "hex",
- "hmac",
- "rand 0.8.8",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror",
- "tracing",
-]
-
-[[package]]
-name = "agent-scope-cli"
-version = "0.1.0"
-dependencies = [
- "agent-scope-audit",
- "agent-scope-core",
- "agent-scope-eval",
- "agent-scope-gateway",
- "agent-scope-identity",
- "agent-scope-mcp",
- "agent-scope-testkit",
- "axum",
- "clap",
- "reqwest",
- "serde",
- "serde_json",
- "serde_norway",
- "tempfile",
- "tokio",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "agent-scope-core"
-version = "0.1.0"
-dependencies = [
- "hex",
- "regex",
- "serde",
- "serde_json",
- "serde_norway",
- "sha2",
- "sqlparser",
- "thiserror",
- "unicode-normalization",
-]
-
-[[package]]
-name = "agent-scope-eval"
-version = "0.1.0"
-dependencies = [
- "agent-scope-core",
- "serde",
- "serde_json",
- "serde_norway",
- "thiserror",
-]
-
-[[package]]
-name = "agent-scope-gateway"
-version = "0.1.0"
-dependencies = [
- "agent-scope-audit",
- "agent-scope-core",
- "agent-scope-identity",
- "agent-scope-mcp",
- "agent-scope-testkit",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "clap",
- "ed25519-dalek",
- "futures",
- "hex",
- "hmac",
- "rand 0.8.8",
- "reqwest",
- "serde",
- "serde_json",
- "serde_norway",
- "sha2",
- "tempfile",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "agent-scope-identity"
-version = "0.1.0"
-dependencies = [
- "agent-scope-core",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "hex",
- "jsonwebtoken",
- "p256",
- "rand 0.8.8",
- "reqwest",
- "serde",
- "serde_json",
- "serde_norway",
- "sha2",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "agent-scope-mcp"
-version = "0.1.0"
-dependencies = [
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "agent-scope-rig"
-version = "0.1.0"
-dependencies = [
- "agent-scope-audit",
- "agent-scope-core",
- "agent-scope-gateway",
- "async-trait",
- "rig-agent",
- "rig-core",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "agent-scope-testkit"
-version = "0.1.0"
-dependencies = [
- "agent-scope-mcp",
- "axum",
- "clap",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "agent-scope-wasm"
-version = "0.1.0"
-dependencies = [
- "agent-scope-core",
- "serde",
- "serde_json",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2675,6 +2491,190 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec4cdd0dd910afe868b7ef477227d8d538b46b3075031afee8a9f2acb0a2ed0b"
 dependencies = [
  "try-lock",
+]
+
+[[package]]
+name = "warden-a2a"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "warden-audit",
+ "warden-core",
+ "warden-identity",
+ "warden-mcp",
+ "warden-testkit",
+]
+
+[[package]]
+name = "warden-audit"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "ed25519-dalek",
+ "hex",
+ "hmac",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "warden-cli"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "clap",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "tempfile",
+ "tokio",
+ "tracing-subscriber",
+ "warden-audit",
+ "warden-core",
+ "warden-eval",
+ "warden-gateway",
+ "warden-identity",
+ "warden-mcp",
+ "warden-testkit",
+]
+
+[[package]]
+name = "warden-core"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "sha2",
+ "sqlparser",
+ "thiserror",
+ "unicode-normalization",
+]
+
+[[package]]
+name = "warden-eval"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "thiserror",
+ "warden-core",
+]
+
+[[package]]
+name = "warden-gateway"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "clap",
+ "ed25519-dalek",
+ "futures",
+ "hex",
+ "hmac",
+ "rand 0.8.8",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "warden-audit",
+ "warden-core",
+ "warden-identity",
+ "warden-mcp",
+ "warden-testkit",
+]
+
+[[package]]
+name = "warden-identity"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "hex",
+ "jsonwebtoken",
+ "p256",
+ "rand 0.8.8",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "warden-core",
+]
+
+[[package]]
+name = "warden-mcp"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "warden-rig"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "rig-agent",
+ "rig-core",
+ "serde_json",
+ "tokio",
+ "warden-audit",
+ "warden-core",
+ "warden-gateway",
+]
+
+[[package]]
+name = "warden-testkit"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "clap",
+ "serde_json",
+ "tokio",
+ "warden-mcp",
+]
+
+[[package]]
+name = "warden-wasm"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "warden-core",
+ "wasm-bindgen",
 ]
 
 [[package]]

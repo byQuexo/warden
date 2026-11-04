@@ -1,13 +1,13 @@
 # Policy reference
 
-agent-scope reads up to four files. They are deliberately separate:
+Warden reads up to four files. They are deliberately separate:
 
 | File | Question it answers | Owner |
 |---|---|---|
 | `catalog.yaml` | What exists, which scopes does it need, how risky is it? | platform / tool owners |
 | `policy.yaml` | Which roles grant which scopes, which agents may use what, which rules restrict? | security |
 | `identity.yaml` | Which issuers do we trust, how do we read their tokens? | identity team |
-| `catalog.lock` | Which exact upstream definitions were reviewed? (generated) | `agent-scope catalog accept` |
+| `catalog.lock` | Which exact upstream definitions were reviewed? (generated) | `warden catalog accept` |
 
 Every file has `version: 1`. Unknown keys are errors, not silently ignored.
 
@@ -34,7 +34,7 @@ x-payment:                              # custom kinds start with x-
 * **Patterns**: `*` matches within one segment (`.` for names, `/` for URIs), `**` across segments.
 * **Overlaps are restrictive**: if several patterns match, *all* their scopes are required and
   tags are merged. A later exact entry cannot drop a `destructive` tag from a glob.
-* **No scopes = denied.** `agent-scope catalog pull` writes entries with `scopes: []` so newly
+* **No scopes = denied.** `warden catalog pull` writes entries with `scopes: []` so newly
   discovered tools stay blocked until someone classifies them.
 * `audit_args: true` stores arguments in clear text in the audit log (never for `pii`).
 
@@ -156,7 +156,7 @@ mapping:
 
 ## Lint
 
-`agent-scope lint` (and every engine build) reports:
+`warden lint` (and every engine build) reports:
 
 | Errors (engine will not load) | Warnings |
 |---|---|
@@ -184,5 +184,5 @@ cases:
     expect: { effect: deny, rule: tenant-pinning, visible: true }
 ```
 
-`agent-scope eval --suite <file> --generate --mutate --coverage --gate` runs your cases plus
+`warden eval --suite <file> --generate --mutate --coverage --gate` runs your cases plus
 generated attacks and enforces the gates described in the README.

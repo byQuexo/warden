@@ -1,6 +1,6 @@
 # Architecture
 
-agent-scope answers one question — *may this agent, acting for this subject, perform this
+Warden answers one question — *may this agent, acting for this subject, perform this
 action right now?* — in a way the model cannot influence. This page explains how the pieces
 fit together.
 
@@ -13,13 +13,13 @@ flowchart LR
         A2[TypeScript agent<br/>npm + WASM]
         A3[Any MCP client]
     end
-    subgraph scope[agent-scope]
-        CORE[agent-scope-core<br/>pure decision engine]
-        ID[agent-scope-identity<br/>JWKS · STS · resolvers]
-        AUD[agent-scope-audit<br/>hash chain · checkpoints]
-        GW[agent-scope-gateway<br/>MCP over HTTP]
-        WASM[agent-scope-wasm]
-        EVAL[agent-scope-eval<br/>scenarios · attacks · mutation]
+    subgraph scope[warden]
+        CORE[warden-core<br/>pure decision engine]
+        ID[warden-identity<br/>JWKS · STS · resolvers]
+        AUD[warden-audit<br/>hash chain · checkpoints]
+        GW[warden-gateway<br/>MCP over HTTP]
+        WASM[warden-wasm]
+        EVAL[warden-eval<br/>scenarios · attacks · mutation]
     end
     IDP[(OIDC IdP<br/>Keycloak, Auth0, Entra, Okta …)]
     UP[MCP servers]
@@ -37,14 +37,14 @@ flowchart LR
 
 | Crate | Responsibility | I/O? |
 |---|---|---|
-| `agent-scope-core` | model, catalog, policy, normalization, constraints, delegation, claims → principal, lint, decision + trace | **none** (no clock, no network) |
-| `agent-scope-identity` | JWT signature verification (OIDC discovery, JWKS cache, kid-flood protection), token-exchange STS with delegation chains, attribute resolvers | HTTP |
-| `agent-scope-audit` | hash-chained JSONL sink, HMAC'd arguments, Ed25519 checkpoints, verifier, tracing sink | files |
-| `agent-scope-mcp` | JSON-RPC/MCP helpers, Streamable HTTP client, SSE parser | HTTP |
-| `agent-scope-gateway` | the enforcement point: sessions, list filtering, call enforcement, approvals, pinning, kill switch, hot reload, admin API | HTTP |
-| `agent-scope-eval` | scenario runner, attack generator, policy mutation testing, CI gates | none |
-| `agent-scope-cli` | `agent-scope` binary (lint, explain, eval, audit, catalog, dev STS, demo) | — |
-| `agent-scope-wasm` + `packages/agent-scope` | the core for TypeScript, plus guards and adapters | — |
+| `warden-core` | model, catalog, policy, normalization, constraints, delegation, claims → principal, lint, decision + trace | **none** (no clock, no network) |
+| `warden-identity` | JWT signature verification (OIDC discovery, JWKS cache, kid-flood protection), token-exchange STS with delegation chains, attribute resolvers | HTTP |
+| `warden-audit` | hash-chained JSONL sink, HMAC'd arguments, Ed25519 checkpoints, verifier, tracing sink | files |
+| `warden-mcp` | JSON-RPC/MCP helpers, Streamable HTTP client, SSE parser | HTTP |
+| `warden-gateway` | the enforcement point: sessions, list filtering, call enforcement, approvals, pinning, kill switch, hot reload, admin API | HTTP |
+| `warden-eval` | scenario runner, attack generator, policy mutation testing, CI gates | none |
+| `warden-cli` | `warden` binary (lint, explain, eval, audit, catalog, dev STS, demo) | — |
+| `warden-wasm` + `packages/warden` | the core for TypeScript, plus guards and adapters | — |
 
 The core being pure is the central design decision: it is what lets the same engine run in
 the gateway, inside a Rust agent and in Node/Browser via WebAssembly, with one set of
@@ -112,8 +112,8 @@ sequenceDiagram
   delegation chain and claim mapping happen in the core (`principal_from_claims`). TypeScript
   uses `jose` for the signature and the same WASM function for the rest.
 * Claim mapping is declarative JSON-Pointer YAML. Presets for Keycloak, Auth0, Entra ID,
-  Okta and generic OIDC live in `crates/agent-scope-core/presets/`.
-* Most IdPs cannot issue RFC 8693 `act` chains, so `agent-scope-identity` contains a small
+  Okta and generic OIDC live in `crates/warden-core/presets/`.
+* Most IdPs cannot issue RFC 8693 `act` chains, so `warden-identity` contains a small
   STS. An agent exchanges the user's token with `delegate_to=<agent>`; the STS checks the
   policy's delegation edges and signs a short-lived token whose `act` chain records every
   delegating agent. The engine re-checks the chain anyway.

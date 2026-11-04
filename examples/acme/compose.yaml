@@ -1,14 +1,14 @@
-# Acme reference stack: Keycloak + agent-scope gateway + three MCP servers + approval webhook.
+# Acme reference stack: Keycloak + warden gateway + three MCP servers + approval webhook.
 #
 #   docker compose -f examples/acme/compose.yaml up --build
 #
 # Keycloak: http://localhost:8080 (admin/admin), gateway: http://localhost:8088/mcp,
 # admin API: http://localhost:8089 (token: dev-admin-token). See examples/acme/README.md.
-name: agent-scope-acme
+name: warden-acme
 
 x-mock: &mock
   build: { context: ../.., dockerfile: Dockerfile }
-  image: agent-scope:local
+  image: warden:local
   entrypoint: ["mock-mcp"]
 
 services:
@@ -45,17 +45,17 @@ services:
     command: ["--approver", "lead@acme", "--port", "9100"]
 
   gateway:
-    image: agent-scope:local
+    image: warden:local
     build: { context: ../.., dockerfile: Dockerfile }
-    command: ["--config", "/etc/agent-scope/gateway.yaml", "--dev"]
+    command: ["--config", "/etc/warden/gateway.yaml", "--dev"]
     environment:
       ADMIN_TOKEN: dev-admin-token
       GW_CLIENT_SECRET: dev-gw-secret
       AUDIT_HMAC_KEY: dev-hmac-key
       RUST_LOG: info
     volumes:
-      - ./:/etc/agent-scope:ro
-      - audit:/var/lib/agent-scope
+      - ./:/etc/warden:ro
+      - audit:/var/lib/warden
     ports: ["8088:8088", "8089:8089"]
     depends_on:
       keycloak: { condition: service_healthy }

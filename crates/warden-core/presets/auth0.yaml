@@ -1,0 +1,9 @@
+# Auth0 access tokens. Roles must be added by an Action as a namespaced custom claim;
+# change the namespace to yours. ID tokens are excluded by the audience check
+# (their `aud` is the client id, not your API).
+subject: /sub
+agent: [/azp, /client_id]
+roles: "/https:~1~1warden.dev~1roles"
+scopes: { path: /scope, split: " " }
+act: /act
+service_if: { path: /gty, equals: client-credentials }

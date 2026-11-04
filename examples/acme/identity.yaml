@@ -7,5 +7,5 @@ issuers:
     jwks_uri: http://keycloak:8080/realms/acme/protocol/openid-connect/certs
     algorithms: [RS256]
     mapping: { preset: keycloak, attrs: { org_unit: /org_unit, tenants: /tenants } }
-# Keycloak scopes are OIDC scopes (openid, profile …), not agent-scope scopes.
+# Keycloak scopes are OIDC scopes (openid, profile …), not warden scopes.
 scope_claim: ignore

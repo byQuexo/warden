@@ -51,7 +51,7 @@ cases:
     expect: { ok: { subject: u-1, kind: user, agent: acme-action, roles: [sales-rep], scopes: ["crm:write"], act: [acme-bot, acme-research] } }
   - id: auth0-user
     now: 1000
-    claims: { iss: https://acme.eu.auth0.com/, aud: [https://gw.example/mcp, https://acme.eu.auth0.com/userinfo], exp: 2000, sub: "auth0|42", azp: spa-client, "https://agent-scope.dev/roles": [support], scope: "openid ticket:read" }
+    claims: { iss: https://acme.eu.auth0.com/, aud: [https://gw.example/mcp, https://acme.eu.auth0.com/userinfo], exp: 2000, sub: "auth0|42", azp: spa-client, "https://warden.dev/roles": [support], scope: "openid ticket:read" }
     expect: { ok: { subject: "auth0|42", kind: user, agent: spa-client, roles: [support], scopes: [openid, "ticket:read"], act: [] } }
   - id: auth0-client-credentials
     now: 1000

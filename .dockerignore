@@ -1,6 +1,6 @@
 target
 **/node_modules
-packages/agent-scope/dist
-packages/agent-scope/wasm
+packages/warden/dist
+packages/warden/wasm
 examples/**/audit
 .git

@@ -7,7 +7,7 @@ policy used by the demo, the end-to-end tests and the security-eval CI gate.
 |---|---|
 | `catalog.yaml` | tools (`hr.*`, `crm.*`, `ticket.*`), resources (`docs://…`), prompts, an A2A skill and a custom `x-payment` kind |
 | `policy.yaml` | 7 roles, 6 agents with delegation edges, 9 restricting rules |
-| `catalog.lock` | pinned definitions of the mock MCP servers (`agent-scope catalog pull`) |
+| `catalog.lock` | pinned definitions of the mock MCP servers (`warden catalog pull`) |
 | `eval/reference.yaml` | 43 hand-written scenarios; CI requires 100% rule coverage and 100% killed mutants |
 | `identity.yaml`, `gateway.yaml`, `compose.yaml`, `keycloak/` | the Docker stack below |
 
@@ -34,18 +34,18 @@ TOKEN=$(curl -s localhost:8080/realms/acme/protocol/openid-connect/token \
 ```
 
 Use the token with any MCP client against `http://localhost:8088/mcp`. The gateway talks to the
-MCP servers with its own Keycloak service account (`agent-scope-gw`), never with your token.
+MCP servers with its own Keycloak service account (`warden-gw`), never with your token.
 
 ## Evaluate the policy
 
 ```bash
-cargo run -p agent-scope-cli -- eval --suite eval/reference.yaml --generate --mutate --coverage --gate
+cargo run -p warden-cli -- eval --suite eval/reference.yaml --generate --mutate --coverage --gate
 ```
 
 ## Explain a decision
 
 ```bash
-cargo run -p agent-scope-cli -- explain \
+cargo run -p warden-cli -- explain \
   --principal '{"subject":{"id":"sven","roles":["sales-rep"],"attrs":{"tenants":["dach"]}},"agent":"acme-bot"}' \
   --action tool:crm.update_deal --args '{"tenant":"dach","deal_id":"d-1","amount":80000}'
 ```

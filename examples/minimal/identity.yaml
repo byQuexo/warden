@@ -7,5 +7,5 @@ issuers:
     mapping: { preset: keycloak }
 # `required` additionally intersects with the token's `scope` claim (the user's consent).
 # The starter uses `ignore` so that plain dev tokens work; switch to `required` once your
-# IdP issues agent-scope scopes.
+# IdP issues warden scopes.
 scope_claim: ignore

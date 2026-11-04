@@ -15,7 +15,7 @@ every delegating agent are allowed to do, with the arguments the policy allows.
 
 ## Threats and mitigations
 
-Each row references the test that demonstrates it (`e2e` = `crates/agent-scope-gateway/tests/e2e.rs`,
+Each row references the test that demonstrates it (`e2e` = `crates/warden-gateway/tests/e2e.rs`,
 `ref` = `examples/acme/eval/reference.yaml`, `gen` = generated attacks).
 
 | # | Threat | Mitigation | Evidence |
@@ -54,7 +54,7 @@ Each row references the test that demonstrates it (`e2e` = `crates/agent-scope-g
 
 * **Exfiltration within allowed actions.** If a user may read deals and the agent may send
   e-mail, the model can be tricked into mailing deals. Restrict combinations with agent
-  ceilings and approvals; agent-scope does not inspect data flows.
+  ceilings and approvals; Warden does not inspect data flows.
 * **Compromised agent process.** It holds valid tokens and can use them within policy.
 * **Upstreams without their own authorization.** Defense in depth: the SQL constraint does not
   replace a read-only database role.
