@@ -108,7 +108,7 @@ Operators use the admin API (separate port, bearer token):
 
 ### Approval webhook protocol (v1)
 
-`POST <url>` with `X-Agent-Scope-Signature: sha256=<hex hmac of body>` (if a secret is set):
+`POST <url>` with `X-Warden-Signature: sha256=<hex hmac of body>` (if a secret is set):
 
 ```json
 {"v":1,"id":"…","subject":"sven","agent":"acme-bot","act":[],"kind":"tool","name":"crm.update_deal",

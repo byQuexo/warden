@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::{json, Value};
-use warden_a2a::{A2aProxy, A2aProxyConfig, CARD_PATH};
+use warden_a2a::{A2aProxy, A2aProxyConfig, UpstreamExchange, CARD_PATH};
 use warden_audit::MemorySink;
 use warden_core::{Engine, IdentityConfig};
 use warden_identity::{ClientDef, Sts, StsConfig, Verifier};
@@ -23,15 +23,22 @@ struct Env {
 }
 
 async fn env() -> Env {
+    env_with(false).await
+}
+
+async fn env_with(exchange: bool) -> Env {
     let sts_l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let sts_url = format!("http://{}", sts_l.local_addr().unwrap());
-    let sts = Arc::new(
-        Sts::new(
-            StsConfig { issuer: sts_url.clone(), token_ttl_s: 300, clients: HashMap::from([("x".into(), ClientDef::default())]) },
-            None,
-        )
-        .unwrap(),
-    );
+    let proxy_l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_url = format!("http://{}", proxy_l.local_addr().unwrap());
+    let clients = HashMap::from([
+        ("x".to_string(), ClientDef::default()),
+        (
+            "a2a-proxy".to_string(),
+            ClientDef { secret: "proxy-secret".into(), accept_audiences: vec![proxy_url.clone()], ..Default::default() },
+        ),
+    ]);
+    let sts = Arc::new(Sts::new(StsConfig { issuer: sts_url.clone(), token_ttl_s: 300, clients }, None).unwrap());
     let r = sts.clone().router();
     tokio::spawn(async move { axum::serve(sts_l, r).await.unwrap() });
 
@@ -67,8 +74,6 @@ async fn env() -> Env {
         );
     let up_url = warden_testkit::serve(upstream).await;
 
-    let proxy_l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let proxy_url = format!("http://{}", proxy_l.local_addr().unwrap());
     let identity = IdentityConfig::from_yaml_str(&format!(
         "version: 1\nissuers:\n  - issuer: {sts_url}\n    audience: {proxy_url}\n    algorithms: [ES256]\n    mapping: {{ preset: keycloak, attrs: {{ tenants: /tenants }} }}\ndelegation_issuers: [{sts_url}]\nscope_claim: ignore\n"
     ))
@@ -82,6 +87,12 @@ async fn env() -> Env {
             public_url: proxy_url.clone(),
             skill_prefix: "research.".into(),
             upstream_token: Some("proxy-service-token".into()),
+            upstream_exchange: exchange.then(|| UpstreamExchange {
+                token_url: format!("{sts_url}/token"),
+                client_id: "a2a-proxy".into(),
+                client_secret: "proxy-secret".into(),
+                audience: "research-agent".into(),
+            }),
         },
         engine,
         Arc::new(Verifier::new(identity)),
@@ -199,4 +210,21 @@ async fn invalid_tokens_and_duplicate_keys_are_rejected() {
         .await
         .unwrap();
     assert_eq!(r.status(), 400);
+}
+
+#[tokio::test]
+async fn upstream_gets_an_exchanged_token_for_the_same_user() {
+    use base64::Engine as _;
+    let e = env_with(true).await;
+    let token = e.token("sara", &["sales-lead"], "acme-research");
+    let ok = e.rpc(&token, send(Some("deep_search"))).await;
+    assert_eq!(ok["result"]["id"], "task-1", "{ok}");
+    let calls = e.upstream_calls.lock().unwrap().clone();
+    let upstream = calls[0]["auth"].as_str().unwrap().strip_prefix("Bearer ").unwrap().to_string();
+    assert_ne!(upstream, token, "the caller's token is never forwarded");
+    let payload = upstream.split('.').nth(1).unwrap();
+    let claims: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload).unwrap()).unwrap();
+    assert_eq!(claims["sub"], "sara");
+    assert_eq!(claims["aud"], "research-agent");
+    assert_eq!(claims["azp"], "acme-research", "same agent identity");
 }

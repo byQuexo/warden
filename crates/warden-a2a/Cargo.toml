@@ -17,11 +17,13 @@ serde_json.workspace = true
 axum.workspace = true
 reqwest.workspace = true
 tokio.workspace = true
+base64.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
 warden-testkit.workspace = true
 tokio.workspace = true
+base64.workspace = true
 
 [lints.clippy]
 unwrap_used = "deny"

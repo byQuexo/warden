@@ -62,7 +62,7 @@ impl Approver for AutoApprove {
 }
 
 /// POSTs the request as JSON and expects `{"decision": "approve"|"deny", "approver": "..."}`.
-/// With a secret, the body is signed: `X-Agent-Scope-Signature: sha256=<hex hmac>`.
+/// With a secret, the body is signed: `X-Warden-Signature: sha256=<hex hmac>`.
 pub struct WebhookApprover {
     url: String,
     secret: Option<Vec<u8>>,

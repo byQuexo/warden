@@ -14,6 +14,11 @@
 //!
 //! Delegation works as everywhere in warden: a calling agent presents a token whose `act`
 //! chain records who delegated to it, and every agent in the chain must hold the skill's scopes.
+//!
+//! The caller's token never reaches the upstream agent. The proxy presents either a static
+//! service credential or, with [`UpstreamExchange`], a token it exchanged for the caller's at a
+//! token service (RFC 8693): same subject and `act` chain, audience narrowed to the upstream
+//! agent, so the agent can act for the user without ever holding the user's token.
 #![forbid(unsafe_code)]
 // Early-return `Result<_, Response>` keeps handlers readable; responses are built once per request.
 #![allow(clippy::result_large_err)]
@@ -48,6 +53,19 @@ pub struct A2aProxyConfig {
     pub skill_prefix: String,
     /// Credential the proxy presents upstream. The caller's token is never forwarded.
     pub upstream_token: Option<String>,
+    /// Exchange the caller's token for one scoped to the upstream agent (takes precedence
+    /// over `upstream_token`).
+    pub upstream_exchange: Option<UpstreamExchange>,
+}
+
+/// RFC 8693 token exchange for the upstream credential.
+#[derive(Clone, Debug)]
+pub struct UpstreamExchange {
+    pub token_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+    /// Audience of the exchanged token (what the upstream agent accepts).
+    pub audience: String,
 }
 
 struct Inner {
@@ -113,9 +131,34 @@ impl A2aProxy {
         self.0.audit.record("decision", fields).is_ok()
     }
 
-    async fn forward(&self, msg: &Value) -> Result<Value, String> {
+    /// The credential for the upstream call: an exchanged token or the static one.
+    async fn upstream_credential(&self, caller_token: &str) -> Result<Option<String>, String> {
+        let Some(x) = &self.0.cfg.upstream_exchange else { return Ok(self.0.cfg.upstream_token.clone()) };
+        let r = self
+            .0
+            .http
+            .post(&x.token_url)
+            .basic_auth(&x.client_id, Some(&x.client_secret))
+            .form(&[
+                ("grant_type", warden_identity::TOKEN_EXCHANGE_GRANT),
+                ("subject_token", caller_token),
+                ("subject_token_type", "urn:ietf:params:oauth:token-type:access_token"),
+                ("audience", x.audience.as_str()),
+            ])
+            .send()
+            .await
+            .map_err(|e| format!("token exchange: {e}"))?;
+        if !r.status().is_success() {
+            return Err(format!("token exchange: HTTP {}", r.status()));
+        }
+        let v: Value = r.json().await.map_err(|e| format!("token exchange: {e}"))?;
+        v.get("access_token").and_then(Value::as_str).map(|t| Some(t.to_string())).ok_or_else(|| "token exchange: no access_token".into())
+    }
+
+    async fn forward(&self, msg: &Value, caller_token: &str) -> Result<Value, String> {
+        let credential = self.upstream_credential(caller_token).await?;
         let mut r = self.0.http.post(&self.0.cfg.upstream_url).header("content-type", "application/json").body(msg.to_string());
-        if let Some(t) = &self.0.cfg.upstream_token {
+        if let Some(t) = &credential {
             r = r.bearer_auth(t);
         }
         let resp = r.send().await.map_err(|e| e.to_string())?;
@@ -170,6 +213,8 @@ async fn rpc(State(proxy): State<A2aProxy>, headers: HeaderMap, body: Bytes) -> 
         Ok(p) => p,
         Err(r) => return r,
     };
+    let caller_token =
+        headers.get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")).unwrap_or_default().to_string();
     let Ok(text) = std::str::from_utf8(&body) else {
         return rpc_error(Value::Null, jsonrpc::PARSE_ERROR, "body is not UTF-8");
     };
@@ -214,7 +259,7 @@ async fn rpc(State(proxy): State<A2aProxy>, headers: HeaderMap, body: Bytes) -> 
             // message/stream is answered as a single (final) response.
             let mut fwd = msg.clone();
             fwd["method"] = json!("message/send");
-            match proxy.forward(&fwd).await {
+            match proxy.forward(&fwd, &caller_token).await {
                 Ok(resp) => {
                     if let Some(task_id) =
                         resp.pointer("/result/id").and_then(Value::as_str).filter(|_| resp.pointer("/result/kind") == Some(&json!("task")))
@@ -243,7 +288,7 @@ async fn rpc(State(proxy): State<A2aProxy>, headers: HeaderMap, body: Bytes) -> 
                 );
                 return rpc_error(id, jsonrpc::FORBIDDEN, "This action is not permitted.");
             }
-            match proxy.forward(&msg).await {
+            match proxy.forward(&msg, &caller_token).await {
                 Ok(resp) => Json(resp).into_response(),
                 Err(e) => rpc_error(id, jsonrpc::UPSTREAM_ERROR, &format!("upstream agent unavailable: {e}")),
             }

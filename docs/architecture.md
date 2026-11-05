@@ -120,6 +120,8 @@ sequenceDiagram
 * Revocation: issuers with `introspection:` are asked (RFC 7662, cached for `cache_s`) on top of
   local JWT verification; `warden sts` implements `/introspect` and `/revoke`, including
   revoke-by-subject.
+* The A2A proxy does the same for agents: with `upstream_exchange` the upstream agent gets a
+  token exchanged for the caller's (narrower audience, same subject and chain).
 * Upstreams never see the client's token: the gateway uses client credentials or token
   exchange (narrower audience, same subject and chain).
 

@@ -25,6 +25,7 @@ in production. The original design document (German) is in [design/plan-de.md](d
 * stdio upstreams (child process with an environment allow-list) next to Streamable HTTP
 * Per-upstream circuit breaker with `list_changed`, audit events and admin health
 * OTLP audit sink (OpenTelemetry logs over HTTP/JSON, no OTEL SDK dependency)
+* A2A proxy token exchange to upstream agents (RFC 8693)
 * Read-only impersonation ("test as user") in STS, engine, gateway audit and eval; `subset_of`
   constraint for list arguments
 * JSON Schemas for every config file (`warden schema`), reusable GitHub Action for policy

@@ -9,6 +9,9 @@
 * OTLP audit sink (OpenTelemetry logs over HTTP/JSON).
 * Read-only impersonation ("test as user"): STS `impersonate=`, `impersonation.read_only` in the
   engine, `context.impersonation` for rules, audited, generated attacks.
+* A2A proxy: `upstream_exchange` exchanges the caller's token at a token service for one
+  scoped to the upstream agent (same subject and `act` chain), so sub-agents can act for the
+  user without ever holding the user's token.
 * `subset_of` constraint: every element of a list argument must be in an attribute list.
 * `warden schema` and JSON Schemas for every config file; examples validate in editors.
 * Reusable GitHub Action (`uses: byQuexo/warden@main`) and nightly cargo-fuzz.
