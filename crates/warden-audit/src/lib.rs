@@ -13,6 +13,8 @@
 //! The [`AuditSink`] trait is the extension point; a failing sink makes the caller deny.
 #![forbid(unsafe_code)]
 
+#[cfg(feature = "otlp")]
+pub mod otlp;
 mod sink;
 mod verify;
 

@@ -220,6 +220,18 @@ pub enum SinkCfg {
     },
     Stdout,
     Tracing,
+    /// OpenTelemetry log export (best effort, never denies).
+    Otlp {
+        endpoint: String,
+        #[serde(default = "d_service")]
+        service_name: String,
+        /// Header name → environment variable with its value (e.g. an API key).
+        #[serde(default)]
+        headers_env: std::collections::BTreeMap<String, String>,
+    },
+}
+fn d_service() -> String {
+    "warden-gateway".into()
 }
 fn d_chain() -> String {
     "gw-1".into()
@@ -378,6 +390,14 @@ impl GatewayConfig {
             sinks.push(match s {
                 SinkCfg::Stdout => Arc::new(StdoutSink),
                 SinkCfg::Tracing => Arc::new(TracingSink),
+                SinkCfg::Otlp { endpoint, service_name, headers_env } => {
+                    let mut cfg = warden_audit::otlp::OtlpConfig::new(endpoint.clone());
+                    cfg.service_name = service_name.clone();
+                    for (h, var) in headers_env {
+                        cfg.headers.push((h.clone(), env(var)?));
+                    }
+                    warden_audit::otlp::OtlpSink::spawn(cfg)
+                }
                 SinkCfg::Jsonl { dir, chain, checkpoint_key_env, checkpoint_every } => {
                     let key = checkpoint_key_env
                         .as_deref()

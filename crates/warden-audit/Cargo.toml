@@ -20,9 +20,18 @@ base64.workspace = true
 chrono.workspace = true
 rand.workspace = true
 tracing.workspace = true
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+
+[features]
+default = []
+# OpenTelemetry (OTLP/HTTP) log export.
+otlp = ["dep:reqwest", "dep:tokio"]
 
 [dev-dependencies]
 tempfile.workspace = true
+tokio.workspace = true
+axum.workspace = true
 
 [lints.clippy]
 unwrap_used = "deny"

@@ -2513,17 +2513,20 @@ dependencies = [
 name = "warden-audit"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "base64 0.22.1",
  "chrono",
  "ed25519-dalek",
  "hex",
  "hmac",
  "rand 0.8.8",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
  "thiserror",
+ "tokio",
  "tracing",
 ]
 
