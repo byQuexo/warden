@@ -13,7 +13,7 @@
 <p align="center">
   <img alt="0 policy violations across 209 scenario and generated attack cases · 100% mutation score and rule coverage · 14 µs per decision (p50), p99 45 µs" src="docs/assets/readme/metrics.svg" width="100%">
   <br>
-  <sub>From CI on every push: the <a href="examples/devtools/eval/reference.yaml">devtools</a> and <a href="examples/acme/eval/reference.yaml">acme</a> scenario suites plus attacks generated from each policy (<code>warden eval --generate --mutate --coverage --gate</code>). Latency from <code>warden bench</code>, release build, one core. → <a href="#results">Results</a> · <a href="#learnings">Learnings</a></sub>
+  <sub>From CI on every push: the <a href="examples/devtools/eval/reference.yaml">devtools</a> and <a href="examples/acme/eval/reference.yaml">acme</a> scenario suites plus attacks generated from each policy (<code>warden eval --generate --mutate --coverage --gate</code>). Latency from <code>warden bench</code>, release build, one core. → <a href="#results">Results</a></sub>
 </p>
 
 ## Try it
@@ -65,10 +65,6 @@ real tokens over real HTTP:
 |---|---|---|
 | Put `warden-gateway` in front of the MCP servers you already run. Agents connect with the user's OAuth token. [Quickstart](#quickstart) | `warden-core` in your own loop, `ScopeHook` for [rig](https://github.com/0xPlaygrounds/rig) agents, `warden-a2a` for agent-to-agent calls. [Rust guide](docs/consuming.md#2-rust-in-process) | The same engine as WebAssembly: `guard()` any function, wrap your MCP server, or filter Vercel AI SDK tools. [TS guide](packages/warden/README.md) |
 
-Nothing in the core knows about GitHub, HR or any other domain: actions, roles, scopes,
-agents and attributes all come from your YAML. Custom action kinds (`x-payment`, `x-shell`, …)
-work exactly like tools.
-
 ## What makes it different
 
 Most agent frameworks hand every tool to every user and hope the prompt holds. Warden
@@ -119,6 +115,26 @@ trace:
   rule:own-orgs-only     deny       require — required condition does not hold
 model sees: This action is not permitted.
 ```
+
+## Why not just fine-grained tokens?
+
+Use them: Warden gives each upstream its own narrow credential and never forwards the user's
+token. But a token describes what a *credential* may do, and an agent setup has three problems
+a token cannot see:
+
+| | Fine-grained token | Warden |
+|---|---|---|
+| **Who** | one token per MCP server, shared by every user and agent behind it, so everyone gets the union | decides per user × agent × delegation chain, from the user's own OAuth token |
+| **What exactly** | "write issues in repo X" | "only in orgs the user belongs to", "SELECT on these two tables", "post only to #deploys", "refunds up to 500 €" |
+| **Who else** | none | `approve_if`: a human confirms the merge, with the exact arguments that will run |
+| **Agent → agent** | the second agent has its own, usually broader, token | the chain is in the token and the ceiling of every agent in it applies |
+| **Where** | per vendor, if the vendor has them at all (internal APIs often have one API key) | one policy for every MCP server, A2A agent or in-process function |
+| **Afterwards** | vendor logs, if any, showing the service account | one signed audit log: user, agent, chain, action, arguments (HMAC'd), decision, rule |
+
+The demo uses GitHub, Postgres and Slack only because everyone knows them. Nothing in the core
+knows about any product: actions, roles, scopes, agents and attributes all come from your YAML,
+so the same files describe a ticketing system, a payments API, an HR tool or a shell. Custom
+action kinds (`x-payment`, `x-shell`, …) work exactly like MCP tools.
 
 ## Architecture
 
@@ -192,32 +208,7 @@ answer follows from the rules, not from running the engine:
 | Controls | kill switch on every write; service tokens when not allowed |
 </details>
 
-## Learnings
-
-- **A rule that grants is a bug waiting to happen.** The first design had `effect: allow` rules
-  with an optional `else`; a rule without `else` silently fell back to the scope and *allowed*
-  the forbidden salary lookup. Rules now only restrict (`require`, `approve_if`, `deny_if`), so
-  no rule can ever widen access. → [policy reference](docs/policy-reference.md)
-- **"Missing" must mean "deny".** Leaving out `amount` or sending `"80000"` as a string skipped
-  the approval rule. Every unknown (missing argument, wrong type, unresolved attribute) now
-  denies, whatever the rule kind. The generator tests this for every constrained argument.
-- **Parsers disagree.** `{"owner":"acme","owner":"evil"}` is read as `acme` by one JSON parser
-  and `evil` by another. The gateway rejects duplicate keys and forwards exactly what it checked.
-- **Reject, don't repair.** Folding homoglyphs needs a confusables table that is never complete;
-  requiring ASCII names after NFKC needs nothing. The same goes for `..` and `%2e%2e` in URIs.
-- **A hash chain is not tamper-proof.** Anyone who can write the log can recompute every hash.
-  Signed checkpoints make a full rewrite detectable; the test suite does exactly that attack.
-
-<details>
-<summary>3 more learnings</summary>
-
-- **Mutation testing finds untested rules that coverage misses.** A rule can "fire" in a test and
-  still not be needed for any assertion to pass; removing it and re-running is the honest check.
-- **Most IdPs cannot express delegation.** RFC 8693 `act` chains are rarely issued, so Warden
-  ships a small STS that adds the chain on token exchange; the engine checks it again anyway.
-- **`file:///` has an empty authority.** The first URI normalizer rejected every filesystem MCP
-  resource; a generic framework has to be tried against generic servers.
-</details>
+## Design and limits
 
 <details>
 <summary>Design decisions</summary>
