@@ -1,5 +1,7 @@
 [workspace]
 resolver = "2"
+# fuzz/ is a separate cargo-fuzz workspace (nightly only).
+exclude = ["fuzz"]
 members = [
     "crates/warden-core",
     "crates/warden-identity",

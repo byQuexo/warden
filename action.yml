@@ -1,0 +1,80 @@
+name: Warden policy eval
+description: Lint a Warden policy and run its security eval (scenarios, generated attacks, mutation testing) as a hard CI gate.
+author: byQuexo
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  working-directory:
+    description: Directory containing the policy files.
+    default: "."
+  policy:
+    description: Policy file, relative to working-directory.
+    default: policy.yaml
+  catalog:
+    description: Catalog file, relative to working-directory.
+    default: catalog.yaml
+  lock:
+    description: Optional catalog.lock, relative to working-directory.
+    default: ""
+  suites:
+    description: Scenario files, space-separated, relative to working-directory.
+    default: ""
+  generate:
+    description: Add attack cases generated from the policy.
+    default: "true"
+  mutate:
+    description: Remove each rule and require a failing case (mutation testing).
+    default: "true"
+  coverage:
+    description: Require every rule to fire and hold back at least once.
+    default: "true"
+  strict-lint:
+    description: Treat lint warnings as errors.
+    default: "true"
+
+outputs:
+  report:
+    description: Path of the Markdown report.
+    value: ${{ steps.eval.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: Install warden
+      shell: bash
+      run: cargo install --locked --path "$GITHUB_ACTION_PATH/crates/warden-cli" --root "$RUNNER_TEMP/warden"
+    - name: Lint and evaluate
+      id: eval
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        POLICY: ${{ inputs.policy }}
+        CATALOG: ${{ inputs.catalog }}
+        LOCK: ${{ inputs.lock }}
+        SUITES: ${{ inputs.suites }}
+        GENERATE: ${{ inputs.generate }}
+        MUTATE: ${{ inputs.mutate }}
+        COVERAGE: ${{ inputs.coverage }}
+        STRICT: ${{ inputs.strict-lint }}
+      run: |
+        set -euo pipefail
+        W="$RUNNER_TEMP/warden/bin/warden"
+        files=(--policy "$POLICY" --catalog "$CATALOG")
+        if [ -n "$LOCK" ]; then files+=(--lock "$LOCK"); fi
+        lint=(lint "${files[@]}")
+        if [ "$STRICT" = "true" ]; then lint+=(--strict); fi
+        "$W" "${lint[@]}"
+        args=(eval "${files[@]}" --gate --report "$RUNNER_TEMP/warden-eval.md")
+        for s in $SUITES; do args+=(--suite "$s"); done
+        if [ "$GENERATE" = "true" ]; then args+=(--generate); fi
+        if [ "$MUTATE" = "true" ]; then args+=(--mutate); fi
+        if [ "$COVERAGE" = "true" ]; then args+=(--coverage); fi
+        status=0
+        "$W" "${args[@]}" > /dev/null || status=$?
+        cat "$RUNNER_TEMP/warden-eval.md" >> "$GITHUB_STEP_SUMMARY"
+        echo "report=$RUNNER_TEMP/warden-eval.md" >> "$GITHUB_OUTPUT"
+        exit $status
