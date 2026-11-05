@@ -19,11 +19,18 @@ struct Args {
     port: u16,
     #[arg(long, default_value = "0.0.0.0")]
     host: String,
+    /// Speak MCP over stdin/stdout instead of HTTP (with --profile).
+    #[arg(long)]
+    stdio: bool,
 }
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let a = Args::parse();
+    if a.stdio {
+        let Some(p) = a.profile else { return Err(std::io::Error::other("--stdio needs --profile")) };
+        return warden_testkit::serve_stdio(p).await;
+    }
     let listener = tokio::net::TcpListener::bind((a.host.as_str(), a.port)).await?;
     let addr = listener.local_addr()?;
     let router = match (a.profile, a.approver) {

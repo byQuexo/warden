@@ -1,4 +1,4 @@
-//! An MCP client for Streamable HTTP servers.
+//! An MCP client for Streamable HTTP and stdio servers.
 //!
 //! One session per credential: the gateway talks to an upstream with a per-user token,
 //! so sessions are keyed by the bearer token. Server→client requests that arrive in a
@@ -13,6 +13,7 @@ use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
 use crate::jsonrpc;
+use crate::stdio::{StdioConn, StdioSpec};
 use crate::{sse, LATEST_PROTOCOL_VERSION};
 
 #[derive(Debug, thiserror::Error)]
@@ -42,6 +43,8 @@ pub struct McpClient {
     sessions: Mutex<HashMap<String, Option<String>>>,
     next_id: AtomicI64,
     client_name: String,
+    timeout: Duration,
+    stdio: Option<(StdioSpec, Mutex<Option<std::sync::Arc<StdioConn>>>)>,
 }
 
 pub struct RawResponse {
@@ -62,7 +65,57 @@ impl McpClient {
             sessions: Mutex::new(HashMap::new()),
             next_id: AtomicI64::new(1),
             client_name: "warden".into(),
+            timeout,
+            stdio: None,
         }
+    }
+
+    /// A client for a local stdio MCP server. The process is started on first use and
+    /// restarted if it exits. Bearer tokens are ignored: the server is not on the network.
+    pub fn stdio(spec: StdioSpec) -> Self {
+        let mut c = Self::new(format!("stdio:{}", spec.command));
+        c.stdio = Some((spec, Mutex::new(None)));
+        c
+    }
+
+    async fn call_stdio(
+        &self,
+        spec: &StdioSpec,
+        slot: &Mutex<Option<std::sync::Arc<StdioConn>>>,
+        method: &str,
+        params: Value,
+    ) -> Result<Outcome, ClientError> {
+        let conn = {
+            let mut guard = slot.lock().await;
+            match guard.as_ref().filter(|c| c.is_alive()) {
+                Some(c) => c.clone(),
+                None => {
+                    let c = StdioConn::spawn(spec).await?;
+                    let init = json!({
+                        "protocolVersion": LATEST_PROTOCOL_VERSION,
+                        "capabilities": {},
+                        "clientInfo": {"name": self.client_name, "version": env!("CARGO_PKG_VERSION")}
+                    });
+                    let (resp, _) = c.request(self.id(), "initialize", init, self.timeout).await?;
+                    if let Some(e) = resp.get("error") {
+                        return Err(ClientError::Protocol(format!("initialize failed: {e}")));
+                    }
+                    c.notify("notifications/initialized", json!({})).await?;
+                    *guard = Some(c.clone());
+                    c
+                }
+            }
+        };
+        let (resp, blocked) = conn.request(self.id(), method, params, self.timeout).await?;
+        let result = match (resp.get("result"), resp.get("error")) {
+            (Some(r), _) => Ok(r.clone()),
+            (None, Some(e)) => Err((
+                e.get("code").and_then(Value::as_i64).unwrap_or(jsonrpc::INTERNAL_ERROR),
+                e.get("message").and_then(Value::as_str).unwrap_or("error").to_string(),
+            )),
+            _ => Err((jsonrpc::INTERNAL_ERROR, "empty response".into())),
+        };
+        Ok(Outcome { result, blocked, notifications: vec![] })
     }
 
     pub fn url(&self) -> &str {
@@ -138,6 +191,9 @@ impl McpClient {
 
     /// Send a request, initializing a session first if needed.
     pub async fn call(&self, bearer: Option<&str>, method: &str, params: Value) -> Result<Outcome, ClientError> {
+        if let Some((spec, slot)) = &self.stdio {
+            return self.call_stdio(spec, slot, method, params).await;
+        }
         let key = bearer.unwrap_or("").to_string();
         for attempt in 0..2 {
             let existing = self.sessions.lock().await.get(&key).cloned();

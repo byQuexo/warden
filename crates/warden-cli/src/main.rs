@@ -178,6 +178,16 @@ enum CatalogCmd {
 
 #[derive(Subcommand)]
 enum DevCmd {
+    /// Run a deterministic mock MCP server (HTTP or stdio), for demos and tests.
+    MockMcp {
+        /// hr | crm | docs | ticket | evil | github | postgres | slack | files
+        #[arg(long)]
+        profile: warden_testkit::Profile,
+        #[arg(long)]
+        stdio: bool,
+        #[arg(long, default_value_t = 9000)]
+        port: u16,
+    },
     /// Generate an ES256 signing key (PKCS#8 PEM) for the dev STS.
     Keygen,
     /// Run a local STS / dev IdP (OIDC discovery, JWKS, client credentials, token exchange).
@@ -250,6 +260,15 @@ async fn run(cmd: Cmd) -> Result<i32, String> {
         },
         Cmd::Dev { cmd } => match cmd {
             DevCmd::Keygen => commands::dev_keygen(),
+            DevCmd::MockMcp { profile, stdio, port } => {
+                if stdio {
+                    warden_testkit::serve_stdio(profile).await.map_err(|e| e.to_string())?;
+                } else {
+                    let l = tokio::net::TcpListener::bind(("127.0.0.1", port)).await.map_err(|e| e.to_string())?;
+                    axum::serve(l, warden_testkit::router(profile)).await.map_err(|e| e.to_string())?;
+                }
+                Ok(0)
+            }
             DevCmd::Sts { config, port } => commands::dev_sts(&config, port).await,
             DevCmd::Token { config, subject, agent, roles, attrs, audience, scopes, ttl } => {
                 commands::dev_token(&config, &subject, &agent, &roles, &attrs, &audience, &scopes, ttl)

@@ -8,8 +8,10 @@
 pub mod client;
 pub mod jsonrpc;
 pub mod sse;
+pub mod stdio;
 
 pub use client::{ClientError, McpClient, Outcome};
+pub use stdio::StdioSpec;
 
 /// Protocol revisions the gateway speaks, newest first.
 pub const PROTOCOL_VERSIONS: &[&str] = &["2025-06-18", "2025-03-26", "2024-11-05"];

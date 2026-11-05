@@ -253,29 +253,40 @@ fn json_response(v: Value, session: Option<&str>) -> Response<Body> {
 }
 
 async fn handle(State(sh): State<Shared>, headers: HeaderMap, Json(msg): Json<Value>) -> Response<Body> {
+    let authorization = headers.get("authorization").and_then(|v| v.to_str().ok()).map(str::to_string);
+    let is_init = msg.get("method").and_then(Value::as_str) == Some("initialize");
+    let mut out = respond(&sh, &msg, authorization);
+    match out.len() {
+        0 => Response::builder().status(StatusCode::ACCEPTED).body(Body::empty()).unwrap_or_default(),
+        1 => json_response(out.remove(0), is_init.then_some("mock-session")),
+        _ => {
+            let body: String = out.iter().map(|m| format!("data: {m}\n\n")).collect();
+            Response::builder().header("content-type", "text/event-stream").body(Body::from(body)).unwrap_or_default()
+        }
+    }
+}
+
+/// Transport-independent request handling: the messages to send back (empty for notifications).
+fn respond(sh: &Shared, msg: &Value, authorization: Option<String>) -> Vec<Value> {
     let method = msg.get("method").and_then(Value::as_str).unwrap_or("<response>").to_string();
     let params = msg.get("params").cloned().unwrap_or(Value::Null);
-    let authorization = headers.get("authorization").and_then(|v| v.to_str().ok()).map(str::to_string);
     if let Ok(mut l) = sh.log.lock() {
         l.push(Logged { method: method.clone(), authorization, params: params.clone() });
     }
     let Some(id) = msg.get("id").cloned().filter(|_| msg.get("method").is_some()) else {
         // Notifications and responses to our own requests.
-        return Response::builder().status(StatusCode::ACCEPTED).body(Body::empty()).unwrap_or_default();
+        return vec![];
     };
     let (tools, resources, prompts, sampling) = match sh.state.lock() {
         Ok(st) => (st.tools.clone(), st.resources.clone(), st.prompts.clone(), st.sampling_on_call),
-        Err(_) => return json_response(jsonrpc::error(id, jsonrpc::INTERNAL_ERROR, "poisoned"), None),
+        Err(_) => return vec![jsonrpc::error(id, jsonrpc::INTERNAL_ERROR, "poisoned")],
     };
     let result = match method.as_str() {
-        "initialize" => {
-            let r = json!({
-                "protocolVersion": warden_mcp::LATEST_PROTOCOL_VERSION,
-                "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
-                "serverInfo": {"name": "mock-mcp", "version": "0"}
-            });
-            return json_response(jsonrpc::ok(id, r), Some("mock-session"));
-        }
+        "initialize" => json!({
+            "protocolVersion": warden_mcp::LATEST_PROTOCOL_VERSION,
+            "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
+            "serverInfo": {"name": "mock-mcp", "version": "0"}
+        }),
         "ping" => json!({}),
         "tools/list" => json!({"tools": tools}),
         "resources/list" => json!({"resources": resources}),
@@ -284,7 +295,7 @@ async fn handle(State(sh): State<Shared>, headers: HeaderMap, Json(msg): Json<Va
         "tools/call" => {
             let name = params.get("name").and_then(Value::as_str).unwrap_or("");
             if !tools.iter().any(|t| t["name"] == name) {
-                return json_response(jsonrpc::error(id, jsonrpc::INVALID_PARAMS, "unknown tool"), None);
+                return vec![jsonrpc::error(id, jsonrpc::INVALID_PARAMS, "unknown tool")];
             }
             let args = params.get("arguments").cloned().unwrap_or(json!({}));
             let result = json!({
@@ -293,23 +304,50 @@ async fn handle(State(sh): State<Shared>, headers: HeaderMap, Json(msg): Json<Va
             });
             if sampling {
                 let req = jsonrpc::request(json!("srv-1"), "sampling/createMessage", json!({"messages": [], "maxTokens": 10}));
-                let body = format!("data: {req}\n\ndata: {}\n\n", jsonrpc::ok(id, result));
-                return Response::builder().header("content-type", "text/event-stream").body(Body::from(body)).unwrap_or_default();
+                return vec![req, jsonrpc::ok(id, result)];
             }
             result
         }
         "resources/read" => {
             let uri = params.get("uri").and_then(Value::as_str).unwrap_or("");
             if !resources.iter().any(|r| r["uri"] == uri) {
-                return json_response(jsonrpc::error(id, jsonrpc::INVALID_PARAMS, "unknown resource"), None);
+                return vec![jsonrpc::error(id, jsonrpc::INVALID_PARAMS, "unknown resource")];
             }
             json!({"contents": [{"uri": uri, "mimeType": "text/markdown", "text": format!("# {uri}\nconfidential content")}]})
         }
         "prompts/get" => json!({"messages": [{"role": "user", "content": {"type": "text", "text": "Summarize the deal."}}]}),
         "completion/complete" => json!({"completion": {"values": ["d-1", "d-2"], "hasMore": false}}),
-        _ => return json_response(jsonrpc::error(id, jsonrpc::METHOD_NOT_FOUND, "method not found"), None),
+        _ => return vec![jsonrpc::error(id, jsonrpc::METHOD_NOT_FOUND, "method not found")],
     };
-    json_response(jsonrpc::ok(id, result), None)
+    vec![jsonrpc::ok(id, result)]
+}
+
+/// Serve a profile over stdio (newline-delimited JSON-RPC on stdin/stdout), as local MCP
+/// servers do. Returns when stdin closes.
+pub async fn serve_stdio(profile: Profile) -> std::io::Result<()> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let sh = Shared { log: Arc::new(Mutex::new(Vec::new())), state: Arc::new(Mutex::new(profile_state(profile))) };
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    let mut stdout = tokio::io::stdout();
+    while let Some(line) = lines.next_line().await? {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let msg: Value = match serde_json::from_str(&line) {
+            Ok(m) => m,
+            Err(_) => jsonrpc::error(Value::Null, jsonrpc::PARSE_ERROR, "invalid JSON"),
+        };
+        if msg.get("error").is_some() && msg.get("id") == Some(&Value::Null) {
+            stdout.write_all(format!("{msg}\n").as_bytes()).await?;
+            continue;
+        }
+        let token = std::env::var("MOCK_MCP_TOKEN").ok().map(|t| format!("Bearer {t}"));
+        for m in respond(&sh, &msg, token) {
+            stdout.write_all(format!("{m}\n").as_bytes()).await?;
+        }
+        stdout.flush().await?;
+    }
+    Ok(())
 }
 
 /// A mock approval webhook.

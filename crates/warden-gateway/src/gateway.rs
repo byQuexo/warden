@@ -178,6 +178,14 @@ impl GatewayBuilder {
         self.upstreams.insert(name.to_string(), Upstream { name: name.to_string(), client: McpClient::new(url), auth, resource_prefixes });
         self
     }
+    /// A local MCP server spoken to over stdio (started by the gateway).
+    pub fn upstream_stdio(mut self, name: &str, spec: warden_mcp::StdioSpec, resource_prefixes: Vec<String>) -> Self {
+        self.upstreams.insert(
+            name.to_string(),
+            Upstream { name: name.to_string(), client: McpClient::stdio(spec), auth: UpstreamAuth::None, resource_prefixes },
+        );
+        self
+    }
     pub fn approver(mut self, a: Arc<dyn Approver>) -> Self {
         self.approver = a;
         self

@@ -122,7 +122,15 @@ impl Default for LimitsCfg {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpstreamCfg {
-    pub url: String,
+    /// Streamable HTTP endpoint …
+    #[serde(default)]
+    pub url: Option<String>,
+    /// … or a local server started by the gateway and spoken to over stdio.
+    #[serde(default)]
+    pub command: Option<Vec<String>>,
+    /// Environment variables passed through from the gateway to a stdio server.
+    #[serde(default)]
+    pub pass_env: Vec<String>,
     #[serde(default)]
     pub auth: UpstreamAuthCfg,
     #[serde(default)]
@@ -338,7 +346,20 @@ impl GatewayConfig {
                     scope: scope.clone(),
                 },
             };
-            b = b.upstream(name, &u.url, auth, u.resources.clone());
+            match (&u.url, &u.command) {
+                (Some(url), None) => b = b.upstream(name, url, auth, u.resources.clone()),
+                (None, Some(cmd)) if !cmd.is_empty() => {
+                    if !matches!(u.auth, UpstreamAuthCfg::None) {
+                        return Err(GatewayError::Config(format!(
+                            "upstream `{name}`: stdio servers take credentials via pass_env, not auth"
+                        )));
+                    }
+                    let env = u.pass_env.iter().map(|k| env(k).map(|v| (k.clone(), v))).collect::<Result<Vec<_>, _>>()?;
+                    let spec = warden_mcp::StdioSpec { command: cmd[0].clone(), args: cmd[1..].to_vec(), env };
+                    b = b.upstream_stdio(name, spec, u.resources.clone());
+                }
+                _ => return Err(GatewayError::Config(format!("upstream `{name}` needs exactly one of `url` or `command`"))),
+            }
         }
         let approver: Arc<dyn Approver> = match self.approval.approver.as_str() {
             "deny-all" => Arc::new(DenyAll),
