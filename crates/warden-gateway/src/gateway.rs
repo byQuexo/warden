@@ -29,6 +29,29 @@ impl Default for Limits {
     }
 }
 
+/// Circuit breaker per upstream: after `open_after` consecutive failures the upstream is
+/// skipped (its tools disappear from lists, calls fail fast) for `cooldown`; then one request
+/// is let through (half-open) and a success closes the circuit again.
+#[derive(Clone, Copy, Debug)]
+pub struct CircuitConfig {
+    pub open_after: u32,
+    pub cooldown: Duration,
+}
+
+impl Default for CircuitConfig {
+    fn default() -> Self {
+        Self { open_after: 3, cooldown: Duration::from_secs(30) }
+    }
+}
+
+/// Health of one upstream, as reported by the admin API.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct UpstreamHealth {
+    pub name: String,
+    pub state: &'static str,
+    pub consecutive_failures: u32,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SinkErrorMode {
     /// Any audit failure denies the action.
@@ -72,6 +95,9 @@ pub struct Inner {
     pub(crate) list_changed: broadcast::Sender<()>,
     pub(crate) public_url: String,
     pub(crate) admin_token: Option<String>,
+    pub(crate) circuit: CircuitConfig,
+    /// upstream -> (consecutive failures, open until)
+    pub(crate) health: Mutex<HashMap<String, (u32, Option<Instant>)>>,
 }
 
 /// A running gateway (cheap to clone).
@@ -103,6 +129,7 @@ pub struct GatewayBuilder {
     definition_ttl: Duration,
     public_url: String,
     admin_token: Option<String>,
+    circuit: CircuitConfig,
 }
 
 impl Default for GatewayBuilder {
@@ -123,6 +150,7 @@ impl Default for GatewayBuilder {
             definition_ttl: Duration::from_secs(5),
             public_url: "http://127.0.0.1:8088/mcp".into(),
             admin_token: None,
+            circuit: CircuitConfig::default(),
         }
     }
 }
@@ -190,6 +218,10 @@ impl GatewayBuilder {
         self.public_url = u.into();
         self
     }
+    pub fn circuit(mut self, c: CircuitConfig) -> Self {
+        self.circuit = c;
+        self
+    }
     pub fn admin_token(mut self, t: Option<String>) -> Self {
         self.admin_token = t;
         self
@@ -222,6 +254,8 @@ impl GatewayBuilder {
                 list_changed: tx,
                 public_url: self.public_url,
                 admin_token: self.admin_token,
+                circuit: self.circuit,
+                health: Mutex::new(HashMap::new()),
             }),
         })
     }
@@ -340,6 +374,66 @@ impl Gateway {
         denied
     }
 
+    /// False while the upstream's circuit is open.
+    pub fn upstream_available(&self, name: &str) -> bool {
+        let h = self.inner.health.lock().map(|h| h.get(name).copied()).unwrap_or(None);
+        !matches!(h, Some((_, Some(until))) if Instant::now() < until)
+    }
+
+    pub(crate) fn upstream_ok(&self, name: &str) {
+        let was_open = match self.inner.health.lock() {
+            Ok(mut h) => {
+                let was_open = matches!(h.get(name), Some((_, Some(_))));
+                h.insert(name.to_string(), (0, None));
+                was_open
+            }
+            Err(_) => false,
+        };
+        if was_open {
+            self.record("upstream_up", json!({"upstream": name}));
+            let _ = self.inner.list_changed.send(());
+        }
+    }
+
+    pub(crate) fn upstream_failed(&self, name: &str) {
+        let opened = match self.inner.health.lock() {
+            Ok(mut h) => {
+                let e = h.entry(name.to_string()).or_insert((0, None));
+                e.0 = e.0.saturating_add(1);
+                if e.0 >= self.inner.circuit.open_after {
+                    let newly = e.1.is_none_or(|until| Instant::now() >= until);
+                    e.1 = Some(Instant::now() + self.inner.circuit.cooldown);
+                    newly
+                } else {
+                    false
+                }
+            }
+            Err(_) => false,
+        };
+        if opened {
+            self.record("upstream_down", json!({"upstream": name, "cooldown_ms": self.inner.circuit.cooldown.as_millis() as u64}));
+            let _ = self.inner.list_changed.send(());
+        }
+    }
+
+    /// Circuit state of every upstream.
+    pub fn upstream_health(&self) -> Vec<UpstreamHealth> {
+        let h = self.inner.health.lock().map(|h| h.clone()).unwrap_or_default();
+        self.inner
+            .upstreams
+            .keys()
+            .map(|name| {
+                let (failures, until) = h.get(name).copied().unwrap_or((0, None));
+                let state = match until {
+                    Some(t) if Instant::now() < t => "open",
+                    Some(_) => "half_open",
+                    None => "closed",
+                };
+                UpstreamHealth { name: name.clone(), state, consecutive_failures: failures }
+            })
+            .collect()
+    }
+
     pub fn subscribe_list_changed(&self) -> broadcast::Receiver<()> {
         self.inner.list_changed.subscribe()
     }
@@ -355,6 +449,7 @@ impl Gateway {
             }
         }
         let defs = up.client.list_all(cred, "tools/list", "tools").await.map_err(|e| e.to_string())?;
+        self.upstream_ok(&up.name);
         self.inner.defs.lock().await.insert(key, (Instant::now(), defs.clone()));
         Ok(defs)
     }

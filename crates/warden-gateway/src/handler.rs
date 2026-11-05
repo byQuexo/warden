@@ -211,8 +211,10 @@ async fn credential(gw: &Gateway, up: &Upstream, token: &str) -> Result<Option<S
     up.auth.credential(&gw.http, &gw.token_cache, token, now_unix()).await
 }
 
+/// Record an upstream failure and feed the circuit breaker.
 fn upstream_error(gw: &Gateway, upstream: &str, detail: &str) {
     gw.record("upstream_error", json!({"upstream": upstream, "detail": detail}));
+    gw.upstream_failed(upstream);
 }
 
 /// Annotations shown to the client come from the catalog, never from the upstream.
@@ -234,6 +236,9 @@ async fn list_tools(gw: &Gateway, p: &Principal, token: &str) -> Value {
     let mut keys: HashMap<String, usize> = HashMap::new();
     let mut collided: Vec<String> = Vec::new();
     for (name, up) in &gw.upstreams {
+        if !gw.upstream_available(name) {
+            continue;
+        }
         let cred = match credential(gw, up, token).await {
             Ok(c) => c,
             Err(e) => {
@@ -362,6 +367,9 @@ async fn tools_call(
 }
 
 async fn forward_tool(gw: &Gateway, p: &Principal, token: &str, up: &Upstream, id: Value, raw: &str, args: Value) -> Value {
+    if !gw.upstream_available(&up.name) {
+        return jsonrpc::error(id, jsonrpc::UPSTREAM_ERROR, "upstream unavailable (circuit open)");
+    }
     let cred = match credential(gw, up, token).await {
         Ok(c) => c,
         Err(e) => {
@@ -371,6 +379,7 @@ async fn forward_tool(gw: &Gateway, p: &Principal, token: &str, up: &Upstream, i
     };
     match up.client.call(cred.as_deref(), "tools/call", json!({"name": raw, "arguments": args})).await {
         Ok(o) => {
+            gw.upstream_ok(&up.name);
             for m in &o.blocked {
                 let mut f = Gateway::principal_fields(p);
                 f.insert("upstream".into(), json!(up.name));
@@ -379,7 +388,7 @@ async fn forward_tool(gw: &Gateway, p: &Principal, token: &str, up: &Upstream, i
             }
             match o.result {
                 Ok(r) if r.to_string().len() > gw.limits.result_bytes => {
-                    upstream_error(gw, &up.name, "result exceeds size limit");
+                    gw.record("upstream_error", json!({"upstream": up.name, "detail": "result exceeds size limit"}));
                     jsonrpc::ok(id, jsonrpc::tool_error("The tool result was too large and has been withheld."))
                 }
                 Ok(r) => jsonrpc::ok(id, r),
@@ -516,7 +525,7 @@ async fn list_resources(gw: &Gateway, p: &Principal, token: &str) -> Value {
     let engine = gw.engine();
     let ctx = gw.context();
     let mut out = Vec::new();
-    for (name, up) in gw.upstreams.iter().filter(|(_, u)| !u.resource_prefixes.is_empty()) {
+    for (name, up) in gw.upstreams.iter().filter(|(n, u)| !u.resource_prefixes.is_empty() && gw.upstream_available(n)) {
         let cred = match credential(gw, up, token).await {
             Ok(c) => c,
             Err(e) => {
@@ -526,6 +535,7 @@ async fn list_resources(gw: &Gateway, p: &Principal, token: &str) -> Value {
         };
         match up.client.list_all(cred.as_deref(), "resources/list", "resources").await {
             Ok(items) => {
+                gw.upstream_ok(name);
                 for r in items {
                     let uri = r.get("uri").and_then(Value::as_str).unwrap_or("");
                     let owned = up.resource_prefixes.iter().any(|p| uri.starts_with(p.as_str()));
@@ -568,7 +578,16 @@ async fn list_prompts(gw: &Gateway, p: &Principal, token: &str) -> Value {
             Ok(c) => c,
             Err(_) => continue,
         };
-        let Ok(items) = up.client.list_all(cred.as_deref(), "prompts/list", "prompts").await else { continue };
+        if !gw.upstream_available(name) {
+            continue;
+        }
+        let items = match up.client.list_all(cred.as_deref(), "prompts/list", "prompts").await {
+            Ok(i) => i,
+            Err(e) => {
+                upstream_error(gw, name, &e.to_string());
+                continue;
+            }
+        };
         for pr in items {
             let raw = pr.get("name").and_then(Value::as_str).unwrap_or("");
             let Ok(full) = normalize_name(raw).and_then(|l| normalize_name(&format!("{name}.{l}"))) else { continue };
@@ -628,6 +647,9 @@ async fn complete(gw: &Gateway, p: &Principal, token: &str, id: Value, params: &
 }
 
 async fn forward_generic(gw: &Gateway, token: &str, up: &Upstream, id: Value, method: &str, params: Value) -> Value {
+    if !gw.upstream_available(&up.name) {
+        return jsonrpc::error(id, jsonrpc::UPSTREAM_ERROR, "upstream unavailable (circuit open)");
+    }
     let cred = match credential(gw, up, token).await {
         Ok(c) => c,
         Err(e) => {
@@ -636,11 +658,14 @@ async fn forward_generic(gw: &Gateway, token: &str, up: &Upstream, id: Value, me
         }
     };
     match up.client.call(cred.as_deref(), method, params).await {
-        Ok(o) => match o.result {
-            Ok(r) if r.to_string().len() > gw.limits.result_bytes => jsonrpc::error(id, jsonrpc::UPSTREAM_ERROR, "result too large"),
-            Ok(r) => jsonrpc::ok(id, r),
-            Err((c, m)) => jsonrpc::error(id, c, &m),
-        },
+        Ok(o) => {
+            gw.upstream_ok(&up.name);
+            match o.result {
+                Ok(r) if r.to_string().len() > gw.limits.result_bytes => jsonrpc::error(id, jsonrpc::UPSTREAM_ERROR, "result too large"),
+                Ok(r) => jsonrpc::ok(id, r),
+                Err((c, m)) => jsonrpc::error(id, c, &m),
+            }
+        }
         Err(e) => {
             upstream_error(gw, &up.name, &e.to_string());
             jsonrpc::error(id, jsonrpc::UPSTREAM_ERROR, "upstream unavailable")

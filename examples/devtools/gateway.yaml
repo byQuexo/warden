@@ -18,3 +18,4 @@ audit:
     - { type: stdout }
   hmac_key_env: AUDIT_HMAC_KEY
 kill_switch: { file: kill }
+health: { open_after_failures: 3, cooldown_ms: 30000 }   # circuit breaker per upstream

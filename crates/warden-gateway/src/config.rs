@@ -37,6 +37,24 @@ pub struct GatewayConfig {
     pub audit: AuditCfg,
     #[serde(default)]
     pub kill_switch: Option<KillCfg>,
+    #[serde(default)]
+    pub health: Option<HealthCfg>,
+}
+
+/// Circuit breaker per upstream.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HealthCfg {
+    #[serde(default = "d_open_after")]
+    pub open_after_failures: u32,
+    #[serde(default = "d_cooldown")]
+    pub cooldown_ms: u64,
+}
+fn d_open_after() -> u32 {
+    3
+}
+fn d_cooldown() -> u64 {
+    30_000
 }
 
 fn default_listen() -> String {
@@ -279,6 +297,12 @@ impl GatewayConfig {
 
         if let Some(e) = &self.admin_token_env {
             b = b.admin_token(Some(env(e)?));
+        }
+        if let Some(h) = &self.health {
+            b = b.circuit(crate::gateway::CircuitConfig {
+                open_after: h.open_after_failures.max(1),
+                cooldown: Duration::from_millis(h.cooldown_ms),
+            });
         }
         if let Some(k) = &self.kill_switch {
             b = b.kill_switch_file(rel(&k.file));
