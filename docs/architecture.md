@@ -117,6 +117,9 @@ sequenceDiagram
   STS. An agent exchanges the user's token with `delegate_to=<agent>`; the STS checks the
   policy's delegation edges and signs a short-lived token whose `act` chain records every
   delegating agent. The engine re-checks the chain anyway.
+* Revocation: issuers with `introspection:` are asked (RFC 7662, cached for `cache_s`) on top of
+  local JWT verification; `warden sts` implements `/introspect` and `/revoke`, including
+  revoke-by-subject.
 * Upstreams never see the client's token: the gateway uses client credentials or token
   exchange (narrower audience, same subject and chain).
 
@@ -135,7 +138,8 @@ Arguments are stored as HMAC-SHA256; clear text is opt-in per catalog entry and 
 | Identity provider | `mapping:` YAML (JSON pointers) | keycloak, auth0, entra-id, okta, generic-oidc |
 | Attributes from elsewhere | `AttributeResolver` | static YAML, HTTP JSON (cached) |
 | Approvals | `Approver` / webhook protocol v1 | webhook (HMAC-signed), deny-all, auto-approve (dev only) |
-| Audit | `AuditSink` | JSONL hash chain, stdout, tracing (→ OpenTelemetry), memory, multi |
+| Audit | `AuditSink` | JSONL hash chain, OTLP logs, stdout, tracing, memory, multi |
+| Upstream transport | `url:` or `command:` | Streamable HTTP, stdio (child process, env allow-list) |
 | Upstream credentials | `UpstreamAuth` | token exchange, client credentials, static, none |
 | Argument checks | `CustomConstraint` (Rust) | built-in: equals, in, glob, regex, min, max, not_in_range, sql |
 | Agent frameworks | adapters | MCP gateway, TS `guard()`, MCP server wrapper, Vercel AI SDK |

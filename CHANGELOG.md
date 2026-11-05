@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+* Token introspection (RFC 7662) for opaque tokens and instant revocation; the STS gains
+  `/introspect`, `/revoke` (RFC 7009, revoke-by-subject) and a production `warden sts` command.
+* stdio upstreams (child process, environment allow-list) next to Streamable HTTP.
+* Per-upstream circuit breaker: unhealthy servers leave `tools/list`, calls fail fast, audited.
+* OTLP audit sink (OpenTelemetry logs over HTTP/JSON).
+* `warden schema` and JSON Schemas for every config file; examples validate in editors.
+* Reusable GitHub Action (`uses: byQuexo/warden@main`) and nightly cargo-fuzz.
+* `examples/devtools` (GitHub, Postgres, Slack, files) and `warden bench`.
+
 ## 0.1.0 — 2026-11-05
 
 First public version.

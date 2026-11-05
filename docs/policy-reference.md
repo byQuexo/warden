@@ -133,10 +133,20 @@ issuers:
     algorithms: [RS256, ES256]           # none/HS* are rejected; EdDSA allowed
     jwks_uri: https://…/certs            # optional; OIDC discovery otherwise
     mapping: { preset: keycloak, attrs: { org_unit: /org_unit, tenants: /tenants } }
+    introspection:                       # optional: RFC 7662, for opaque tokens and instant revocation
+      endpoint: https://login.example.com/realms/acme/protocol/openid-connect/token/introspect
+      client_id: warden-gateway
+      secret_env: INTROSPECTION_SECRET
+      cache_s: 10                        # 0 = ask on every request
 delegation_issuers: [https://sts.example.com]   # who may put `act` chains into tokens
 scope_claim: required                    # required | ignore
 clock_skew_s: 30
 ```
+
+With `introspection:`, opaque (non-JWT) access tokens are accepted: the claims come from the
+introspection response and go through the same mapping and checks. JWTs are verified locally
+and then also introspected, so a revoked token is refused within `cache_s` seconds. If the
+endpoint is unreachable the request is denied.
 
 A mapping can be a preset (`keycloak`, `auth0`, `entra-id`, `okta`, `generic-oidc`) plus extra
 attributes, or fully inline:

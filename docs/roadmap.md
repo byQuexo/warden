@@ -20,6 +20,13 @@ in production. The original design document (German) is in [design/plan-de.md](d
 * `warden bench` for decision latency; `examples/devtools` (GitHub, Postgres, Slack, files) as the generic showcase
 * WebAssembly build and TypeScript package (guard, MCP server adapter, AI SDK adapter, jose verifier)
 * Keycloak reference stack with Docker Compose
+* Token introspection (RFC 7662) for opaque tokens and instant revocation; `/introspect` and
+  `/revoke` (RFC 7009, plus revoke-by-subject) in the STS; production `warden sts`
+* stdio upstreams (child process with an environment allow-list) next to Streamable HTTP
+* Per-upstream circuit breaker with `list_changed`, audit events and admin health
+* OTLP audit sink (OpenTelemetry logs over HTTP/JSON, no OTEL SDK dependency)
+* JSON Schemas for every config file (`warden schema`), reusable GitHub Action for policy
+  gates, nightly `cargo-fuzz` on normalization, strict JSON, policy parsing and decisions
 
 ## Deviations from the design document
 
@@ -29,13 +36,12 @@ in production. The original design document (German) is in [design/plan-de.md](d
 | `agent-approval-gate` crate for approvals | `Approver` trait + versioned webhook protocol in the gateway | no dependency on an unpublished crate version |
 | `rig` hook adapter | `warden-rig`: `ScopeHook` for rig-agent 0.46 (`on_dispatch`), pinned exactly | rig is pre-1.0 |
 | A2A adapter crate | `warden-a2a`: own JSON-RPC proxy (agent-card filtering, skill checks, task ownership) instead of `a2a-lf` | full control over parsing, same pattern as the MCP gateway |
-| OpenTelemetry exporter | `TracingSink` emitting `tracing` events | plug into `tracing-opentelemetry` without pinning an OTEL stack |
-| Introspection (RFC 7662), stdio upstreams, circuit breaker, result redaction | not yet | listed below |
+| OpenTelemetry exporter | OTLP/HTTP JSON log sink written directly, plus a `tracing` sink | no OTEL SDK version to pin; logs are what an audit trail is |
+| Result redaction | not yet | listed below |
 
 ## Next
 
-* Token introspection for opaque tokens and instant revocation
-* stdio upstreams and per-upstream health / circuit breaking
+* Result redaction (classify and mask fields in tool results by catalog tags)
 * Rate limits and quotas per principal
 * Cedar as an alternative `Engine` backend; OpenFGA as an `AttributeResolver`
 * Python bindings (PyO3) next to the WASM package

@@ -170,7 +170,7 @@ Hard gates, all **0**: `scope_violation` (allowed what must be denied), `unappro
 | What | Result |
 |---|---|
 | Decision latency (`warden bench`, release, 100k decisions) | p50 **14 µs**, p99 **45 µs** |
-| Rust tests (unit, conformance, end-to-end, CLI, binary, rig, A2A) | **82** passing |
+| Rust tests (unit, conformance, end-to-end, CLI, binary, rig, A2A, schemas) | **94** passing |
 | End-to-end gateway scenarios over real HTTP | **23** |
 | Conformance vectors run by Rust **and** TypeScript/WASM | **88** decisions + **17** tokens (5 IdP presets) |
 | Keycloak stack in Docker (real tokens through the gateway) | **8 / 8** smoke checks |
@@ -242,8 +242,8 @@ answer follows from the rules, not from running the engine:
 - **Exfiltration within allowed actions** is out of scope: if an agent may read deals and send
   mail, it can mail deals. Use agent ceilings and approvals to separate such capabilities.
 - A compromised agent process still holds valid user tokens and can use them within policy.
-- Token introspection (instant revocation), stdio upstreams, rate limits and an OpenTelemetry
-  exporter are not built yet; see [roadmap](docs/roadmap.md).
+- Rate limits, result redaction and a Cedar backend are not built yet; see
+  [roadmap](docs/roadmap.md).
 - Approvals hold the request open (with progress notifications); durable approvals across
   restarts are future work.
 </details>
@@ -255,14 +255,14 @@ answer follows from the rules, not from running the engine:
 warden/
 ├── crates/
 │   ├── warden-core/       # pure engine: model, catalog, policy, constraints, delegation, claims, lint
-│   ├── warden-identity/   # JWKS verifier, token-exchange STS with act chains, attribute resolvers
-│   ├── warden-audit/      # hash-chained JSONL, HMAC'd args, Ed25519 checkpoints, verifier
-│   ├── warden-mcp/        # MCP client and JSON-RPC helpers (Streamable HTTP, SSE)
+│   ├── warden-identity/   # JWKS verifier, introspection, STS with act chains + revocation, resolvers
+│   ├── warden-audit/      # hash-chained JSONL, HMAC'd args, Ed25519 checkpoints, OTLP sink, verifier
+│   ├── warden-mcp/        # MCP client and JSON-RPC helpers (Streamable HTTP, SSE, stdio)
 │   ├── warden-gateway/    # the MCP gateway (binary + library) and its end-to-end tests
 │   ├── warden-a2a/        # A2A proxy: per-caller agent cards, skill enforcement, task ownership
 │   ├── warden-rig/        # ScopeHook for rig agents
 │   ├── warden-eval/       # scenario runner, attack generator, mutation testing, CI gates
-│   ├── warden-cli/        # `warden`: init, lint, explain, eval, bench, audit, catalog, dev, demo
+│   ├── warden-cli/        # `warden`: init, lint, explain, eval, bench, audit, catalog, sts, schema, dev, demo
 │   ├── warden-testkit/    # deterministic mock MCP servers and approver (`mock-mcp`)
 │   └── warden-wasm/       # WebAssembly bindings
 ├── packages/warden/       # npm package: WASM engine, guard(), MCP + AI SDK adapters, jose verifier
@@ -270,7 +270,11 @@ warden/
 │   ├── minimal/           # 20-line starter (what `warden init` writes)
 │   ├── devtools/          # coding agents on GitHub, Postgres, Slack, files (the demo)
 │   └── acme/              # enterprise reference with Keycloak and Docker Compose
-├── spec/vectors/          # cross-language conformance vectors
+├── spec/
+│   ├── vectors/           # cross-language conformance vectors
+│   └── schema/            # JSON Schemas for every config file (generated, checked in CI)
+├── fuzz/                  # cargo-fuzz targets, run nightly
+├── action.yml             # reusable GitHub Action: `uses: byQuexo/warden@main`
 └── docs/                  # architecture, policy reference, threat model, usage, roadmap
 ```
 </details>
@@ -280,15 +284,16 @@ warden/
 
 ```bash
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace                          # 82 tests, no services needed
+cargo test --workspace                          # 94 tests, no services needed
 (cd examples/devtools && cargo run -p warden-cli -- eval --suite eval/reference.yaml --generate --mutate --coverage --gate)
 (cd packages/warden && npm install && npm run build:wasm && npm test)   # needs wasm-bindgen-cli 0.2.130
 KEEP=0 ./examples/acme/smoke.sh                 # Keycloak stack, needs Docker
 ```
 
 CI (GitHub Actions) runs fmt, clippy, all tests, the security-eval gates for both example
-policies with the report in the job summary, the WASM/TypeScript build and conformance tests,
-and the Docker/Keycloak smoke test.
+policies with the report in the job summary, the reusable action against the minimal example,
+the WASM/TypeScript build and conformance tests, and the Docker/Keycloak smoke test. A nightly
+workflow fuzzes name/URI normalization, strict JSON, policy parsing and decisions.
 </details>
 
 ## Quickstart
