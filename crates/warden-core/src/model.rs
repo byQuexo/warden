@@ -90,11 +90,20 @@ pub struct Principal {
     pub expires_at: Option<i64>,
     #[serde(default)]
     pub issuer: Option<String>,
+    /// Set when an operator acts *as* this subject ("test as user"). Such principals are
+    /// read-only: every write is denied, whatever the policy says.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub impersonated_by: Option<String>,
 }
 
 impl Principal {
     pub fn new(subject: Subject, agent: impl Into<String>) -> Self {
-        Self { subject, agent: agent.into(), act: Vec::new(), token_scopes: None, expires_at: None, issuer: None }
+        Self { subject, agent: agent.into(), act: Vec::new(), token_scopes: None, expires_at: None, issuer: None, impersonated_by: None }
+    }
+    /// Mark the principal as impersonated by `operator` (read-only).
+    pub fn impersonated_by(mut self, operator: impl Into<String>) -> Self {
+        self.impersonated_by = Some(operator.into());
+        self
     }
     pub fn with_agent(mut self, agent: impl Into<String>) -> Self {
         self.agent = agent.into();

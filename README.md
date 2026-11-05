@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="0 policy violations across 209 scenario and generated attack cases · 100% mutation score and rule coverage · 14 µs per decision (p50), p99 45 µs" src="docs/assets/readme/metrics.svg" width="100%">
+  <img alt="0 policy violations across 216 scenario and generated attack cases · 100% mutation score and rule coverage · 14 µs per decision (p50), p99 45 µs" src="docs/assets/readme/metrics.svg" width="100%">
   <br>
   <sub>From CI on every push: the <a href="examples/devtools/eval/reference.yaml">devtools</a> and <a href="examples/acme/eval/reference.yaml">acme</a> scenario suites plus attacks generated from each policy (<code>warden eval --generate --mutate --coverage --gate</code>). Latency from <code>warden bench</code>, release build, one core. → <a href="#results">Results</a></sub>
 </p>
@@ -177,8 +177,8 @@ Every number below is produced by CI on every push.
 
 | Suite | Hand-written | Generated attacks | Passed | Rule coverage | Mutants killed |
 |---|---|---|---|---|---|
-| [devtools](examples/devtools/eval/reference.yaml) (GitHub, Postgres, Slack, files) | 23 | 47 | **70 / 70** | 5 / 5 | 5 / 5 |
-| [acme](examples/acme/eval/reference.yaml) (enterprise HR, CRM, tickets, Keycloak) | 43 | 96 | **139 / 139** | 9 / 9 | 9 / 9 |
+| [devtools](examples/devtools/eval/reference.yaml) (GitHub, Postgres, Slack, files) | 23 | 51 | **74 / 74** | 5 / 5 | 5 / 5 |
+| [acme](examples/acme/eval/reference.yaml) (enterprise HR, CRM, tickets, Keycloak) | 43 | 99 | **142 / 142** | 9 / 9 | 9 / 9 |
 
 Hard gates, all **0**: `scope_violation` (allowed what must be denied), `unapproved_write`,
 `delegation_escalation`, failed cases, baseline regressions.
@@ -186,7 +186,7 @@ Hard gates, all **0**: `scope_violation` (allowed what must be denied), `unappro
 | What | Result |
 |---|---|
 | Decision latency (`warden bench`, release, 100k decisions) | p50 **14 µs**, p99 **45 µs** |
-| Rust tests (unit, conformance, end-to-end, CLI, binary, rig, A2A, schemas) | **94** passing |
+| Rust tests (unit, conformance, end-to-end, CLI, binary, rig, A2A, schemas) | **102** passing |
 | End-to-end gateway scenarios over real HTTP | **23** |
 | Conformance vectors run by Rust **and** TypeScript/WASM | **88** decisions + **17** tokens (5 IdP presets) |
 | Keycloak stack in Docker (real tokens through the gateway) | **8 / 8** smoke checks |
@@ -205,7 +205,7 @@ answer follows from the rules, not from running the engine:
 | Arguments | each constrained argument missing, mistyped (`"80000"`), or with a zero-width space |
 | Names | homoglyph variants of every tool (`deletе_repo`) |
 | Parser | duplicate JSON keys |
-| Controls | kill switch on every write; service tokens when not allowed |
+| Controls | kill switch on every write; every write from a test-as-user session; service tokens when not allowed |
 </details>
 
 ## Design and limits
@@ -275,7 +275,7 @@ warden/
 
 ```bash
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace                          # 94 tests, no services needed
+cargo test --workspace                          # 102 tests, no services needed
 (cd examples/devtools && cargo run -p warden-cli -- eval --suite eval/reference.yaml --generate --mutate --coverage --gate)
 (cd packages/warden && npm install && npm run build:wasm && npm test)   # needs wasm-bindgen-cli 0.2.130
 KEEP=0 ./examples/acme/smoke.sh                 # Keycloak stack, needs Docker

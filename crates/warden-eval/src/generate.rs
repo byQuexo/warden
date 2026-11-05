@@ -324,6 +324,18 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
             "kill_switch",
         );
     }
+    for (kind, name, _) in exact.iter().filter(|(k, n, _)| catalog.resolve(k, n).is_some_and(|r| r.sensitivity == Sensitivity::Write)) {
+        push(
+            format!("G-IMPERSONATE {kind}:{name}"),
+            "an admin testing as a user cannot write".into(),
+            god.clone().impersonated_by("__eval_admin__"),
+            act(kind, name, json!({})),
+            deny(Some("impersonation.read_only"), Some(false)),
+            None,
+            None,
+            "impersonation",
+        );
+    }
     if policy.service_subjects == ServiceSubjects::Deny {
         if let Some((kind, name, _)) = exact.first() {
             let svc = Principal::new(Subject::service("__eval_service__").with_roles([ALL]), AGENT);

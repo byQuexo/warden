@@ -210,6 +210,13 @@
             "null"
           ]
         },
+        "impersonated_by": {
+          "description": "Set when an operator acts *as* this subject (\"test as user\"). Such principals are\nread-only: every write is denied, whatever the policy says.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "issuer": {
           "default": null,
           "type": [

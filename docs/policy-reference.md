@@ -103,6 +103,7 @@ Exactly one of `require` / `approve_if` / `deny_if`. All matching rules are eval
 |---|---|---|
 | `equals` | string / number / bool | literal or placeholder |
 | `in` | string | literal list or list placeholder |
+| `subset_of` | list of strings | every element is in the literal list or list placeholder; `[]` holds (`{ arg: doc_ids, subset_of: "{subject.attrs.doc_scope}" }`) |
 | `glob` | string | `*`, `**` with `/` as separator |
 | `regex` | string | must be anchored `^…$`; linear-time engine with size limit |
 | `min`, `max`, `not_in_range` | JSON number | strings are a type error |
@@ -163,6 +164,20 @@ mapping:
   attrs:
     tenants: /tenants
 ```
+
+## Impersonation (test as user)
+
+An operator can see the assistant exactly as another user sees it. A token service client
+with `can_impersonate: true` exchanges the operator's token with `impersonate=<subject>`,
+the target's `roles` and optional `claims` (JSON object of attributes, read from the
+directory by that client). The resulting token carries `warden_impersonation: {by: <operator>}`
+and none of the operator's rights. It is only accepted from issuers listed in
+`delegation_issuers`.
+
+Impersonated principals are **read-only, regardless of the policy**: every action with
+`sensitivity: write` is denied with rule `impersonation.read_only`. Rules can also see
+`context.impersonation` (`true`) and `context.impersonated_by`, and the gateway's audit events
+carry `impersonated_by`. `warden eval --generate` adds one attack per write action.
 
 ## Lint
 

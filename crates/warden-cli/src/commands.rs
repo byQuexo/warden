@@ -327,6 +327,8 @@ struct StsClientFile {
     may_exchange_to: Vec<String>,
     #[serde(default)]
     can_revoke_subjects: bool,
+    #[serde(default)]
+    can_impersonate: bool,
 }
 
 fn is_local_url(u: &str) -> bool {
@@ -360,6 +362,7 @@ fn sts_from(config: &Path, dev: bool) -> Result<(Sts, Option<String>), String> {
                 accept_audiences: c.accept_audiences,
                 may_exchange_to: c.may_exchange_to,
                 can_revoke_subjects: c.can_revoke_subjects,
+                can_impersonate: c.can_impersonate,
             },
         );
     }

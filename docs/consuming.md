@@ -63,12 +63,13 @@ policy: policy.yaml                         # may_delegate_to edges are enforced
 listen: 0.0.0.0:9400
 clients:
   acme-bot: { secret_env: BOT_SECRET }
-  console:  { secret_env: CONSOLE_SECRET, can_revoke_subjects: true }
+  console:  { secret_env: CONSOLE_SECRET, can_revoke_subjects: true, can_impersonate: true }
 ```
 
 Endpoints: `/.well-known/openid-configuration`, `/jwks`, `/token` (client credentials and
 RFC 8693 token exchange with `delegate_to`), `/introspect` (RFC 7662) and `/revoke` (RFC 7009,
-or `sub=<user>` to revoke every token of a user). Without `--dev` it refuses plain-HTTP
+or `sub=<user>` to revoke every token of a user). Clients with `can_impersonate` can issue
+read-only "test as user" tokens ([details](policy-reference.md#impersonation-test-as-user)). Without `--dev` it refuses plain-HTTP
 issuers, literal secrets and a missing signing key. To make revocation take effect at the
 gateway immediately, add `introspection:` to the issuer in the gateway's `identity.yaml`
 (see the [policy reference](policy-reference.md#identityyaml)).

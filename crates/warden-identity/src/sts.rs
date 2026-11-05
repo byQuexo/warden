@@ -49,6 +49,9 @@ pub struct ClientDef {
     /// May revoke every token of a subject (`POST /revoke` with `sub=`), e.g. an admin console.
     #[serde(default)]
     pub can_revoke_subjects: bool,
+    /// May issue "test as user" tokens (`impersonate=<subject>`); the result is read-only.
+    #[serde(default)]
+    pub can_impersonate: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -348,6 +351,23 @@ impl Sts {
                 for k in ["iss", "iat", "jti", "nbf"] {
                     out.remove(k);
                 }
+                if let Some(target) = form.get("impersonate") {
+                    if !client.can_impersonate || !holder {
+                        return Err(StsError::new(
+                            StatusCode::FORBIDDEN,
+                            "unauthorized_client",
+                            format!("`{client_id}` may not impersonate"),
+                        ));
+                    }
+                    if form.contains_key("delegate_to") {
+                        return Err(StsError::new(StatusCode::BAD_REQUEST, "invalid_request", "impersonate and delegate_to are exclusive"));
+                    }
+                    let operator = out.get("sub").and_then(Value::as_str).unwrap_or("").to_string();
+                    if operator.is_empty() || operator == *target {
+                        return Err(StsError::new(StatusCode::BAD_REQUEST, "invalid_request", "invalid impersonation target"));
+                    }
+                    out = impersonation_claims(&out, target, &operator, form)?;
+                }
                 if let Some(target) = form.get("delegate_to") {
                     if !holder {
                         return Err(StsError::new(StatusCode::FORBIDDEN, "unauthorized_client", "only the token holder may delegate"));
@@ -395,6 +415,43 @@ impl Sts {
             "expires_in": (exp - now).max(0),
         }))
     }
+}
+
+/// Claims of a "test as user" token: the target's roles and attributes as supplied by the
+/// (trusted) client from its directory, the operator recorded, nothing of the operator's rights.
+fn impersonation_claims(
+    operator_claims: &Map<String, Value>,
+    target: &str,
+    operator: &str,
+    form: &HashMap<String, String>,
+) -> Result<Map<String, Value>, StsError> {
+    const RESERVED: &[&str] =
+        &["sub", "azp", "aud", "exp", "iss", "iat", "nbf", "jti", "act", "typ", "scope", "realm_access", "warden_impersonation"];
+    let roles: Vec<&str> = form.get("roles").map(|r| r.split(' ').filter(|x| !x.is_empty()).collect()).unwrap_or_default();
+    let mut out = Map::new();
+    if let Some(Value::Object(extra)) = form
+        .get("claims")
+        .map(|c| serde_json::from_str::<Value>(c))
+        .transpose()
+        .map_err(|e| StsError::new(StatusCode::BAD_REQUEST, "invalid_request", format!("`claims` must be a JSON object: {e}")))?
+    {
+        for (k, v) in extra {
+            if RESERVED.contains(&k.as_str()) {
+                return Err(StsError::new(StatusCode::BAD_REQUEST, "invalid_request", format!("`claims` may not set `{k}`")));
+            }
+            out.insert(k, v);
+        }
+    }
+    for k in ["azp", "aud", "exp", "typ", "scope"] {
+        if let Some(v) = operator_claims.get(k) {
+            out.insert(k.into(), v.clone());
+        }
+    }
+    out.insert("sub".into(), json!(target));
+    out.insert("preferred_username".into(), json!(target));
+    out.insert("realm_access".into(), json!({ "roles": roles }));
+    out.insert("warden_impersonation".into(), json!({ "by": operator }));
+    Ok(out)
 }
 
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {

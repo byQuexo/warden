@@ -371,6 +371,18 @@ pub fn principal_from_claims(claims: &Value, cfg: &IdentityConfig, now: i64) -> 
         }
     };
 
+    // Set by a trusted token service for "test as user"; same trust rule as `act`.
+    let impersonated_by = match claims.pointer("/warden_impersonation/by") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(by)) if !by.is_empty() => {
+            if !cfg.delegation_issuers.iter().any(|d| d == iss) {
+                return Err(TokenError::DelegationIssuer(iss.to_string()));
+            }
+            Some(by.clone())
+        }
+        Some(_) => return Err(TokenError::MissingClaim("warden_impersonation.by".into())),
+    };
+
     let mut attrs = Attrs::new();
     for (k, spec) in &m.attrs {
         if let Some(v) = attr(claims, spec) {
@@ -386,6 +398,7 @@ pub fn principal_from_claims(claims: &Value, cfg: &IdentityConfig, now: i64) -> 
         token_scopes,
         expires_at: Some(exp),
         issuer: Some(iss.to_string()),
+        impersonated_by,
     })
 }
 

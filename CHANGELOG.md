@@ -7,6 +7,9 @@
 * stdio upstreams (child process, environment allow-list) next to Streamable HTTP.
 * Per-upstream circuit breaker: unhealthy servers leave `tools/list`, calls fail fast, audited.
 * OTLP audit sink (OpenTelemetry logs over HTTP/JSON).
+* Read-only impersonation ("test as user"): STS `impersonate=`, `impersonation.read_only` in the
+  engine, `context.impersonation` for rules, audited, generated attacks.
+* `subset_of` constraint: every element of a list argument must be in an attribute list.
 * `warden schema` and JSON Schemas for every config file; examples validate in editors.
 * Reusable GitHub Action (`uses: byQuexo/warden@main`) and nightly cargo-fuzz.
 * `examples/devtools` (GitHub, Postgres, Slack, files) and `warden bench`.

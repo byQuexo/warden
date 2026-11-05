@@ -23,7 +23,7 @@ use crate::error::BuildError;
 use crate::json::{self, Limits};
 use crate::lint::{self, Finding, Level};
 use crate::lock::Lock;
-use crate::model::{Action, ActionKind, Context, Decision, Effect, KillSwitch, Principal, SubjectKind, TraceStep};
+use crate::model::{Action, ActionKind, AttrValue, Context, Decision, Effect, KillSwitch, Principal, SubjectKind, TraceStep};
 use crate::normalize::{normalize_name, normalize_uri};
 use crate::policy::{ModelMessages, Policy, RuleKind, ServiceSubjects};
 
@@ -436,6 +436,20 @@ impl Engine {
             ),
         );
 
+        // Impersonation is visible to rules as `context.impersonation` / `context.impersonated_by`.
+        let imp_ctx;
+        let ctx = match &p.impersonated_by {
+            Some(by) => {
+                t.push("impersonation", "ok", format!("by={by} (read-only)"));
+                let mut c = ctx.clone();
+                c.values.insert("impersonation".into(), AttrValue::Bool(true));
+                c.values.insert("impersonated_by".into(), AttrValue::String(by.clone()));
+                imp_ctx = c;
+                &imp_ctx
+            }
+            None => ctx,
+        };
+
         // 3. kill switch (all)
         if ctx.kill_switch == KillSwitch::All {
             deny!("kill_switch", "kill switch is set to `all`".into());
@@ -458,6 +472,10 @@ impl Engine {
                 Some(Some(h)) if a.definition_hash.as_deref() == Some(h) => t.push("pin", "ok", ""),
                 Some(Some(_)) => deny!("catalog.unpinned", format!("definition of `{name}` changed since it was pinned")),
             }
+        }
+
+        if p.impersonated_by.is_some() && resolved.sensitivity == Sensitivity::Write {
+            deny!("impersonation.read_only", "impersonated sessions cannot write".into());
         }
 
         // 5. kill switch (writes)

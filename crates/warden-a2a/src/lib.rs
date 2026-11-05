@@ -106,7 +106,7 @@ impl A2aProxy {
 
     fn audit(&self, p: &Principal, action: &Action, effect: Effect, rule: &str, reason: &str, version: &str) -> bool {
         let fields = json!({
-            "subject": p.subject.id, "agent": p.agent, "act": p.act, "effect": effect, "rule": rule, "reason": reason,
+            "subject": p.subject.id, "agent": p.agent, "act": p.act, "impersonated_by": p.impersonated_by, "effect": effect, "rule": rule, "reason": reason,
             "policy_version": version, "adapter": "a2a",
             "action": {"kind": action.kind.as_str(), "name": action.name, "args_hmac": args_hmac(&self.0.hmac_key, &action.args)},
         });

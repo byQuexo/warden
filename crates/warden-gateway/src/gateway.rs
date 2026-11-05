@@ -337,6 +337,9 @@ impl Gateway {
         m.insert("subject".into(), json!(p.subject.id));
         m.insert("agent".into(), json!(p.agent));
         m.insert("act".into(), json!(p.act));
+        if let Some(by) = &p.impersonated_by {
+            m.insert("impersonated_by".into(), json!(by));
+        }
         m
     }
 
