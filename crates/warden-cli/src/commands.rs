@@ -299,25 +299,83 @@ struct StsFile {
     #[serde(default = "ttl")]
     token_ttl_s: i64,
     #[serde(default)]
-    clients: HashMap<String, ClientDef>,
+    clients: HashMap<String, StsClientFile>,
     /// Optional policy whose `may_delegate_to` edges the STS enforces.
     #[serde(default)]
     policy: Option<String>,
+    /// identity.yaml of the IdP(s) whose access tokens may be exchanged (e.g. Keycloak).
+    #[serde(default)]
+    trust: Option<String>,
+    #[serde(default)]
+    listen: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StsClientFile {
+    /// Literal secret: only allowed with --dev.
+    #[serde(default)]
+    secret: Option<String>,
+    /// Environment variable holding the secret.
+    #[serde(default)]
+    secret_env: Option<String>,
+    #[serde(default)]
+    roles: Vec<String>,
+    #[serde(default)]
+    accept_audiences: Vec<String>,
+    #[serde(default)]
+    may_exchange_to: Vec<String>,
+    #[serde(default)]
+    can_revoke_subjects: bool,
+}
+
+fn is_local_url(u: &str) -> bool {
+    let rest = u.strip_prefix("http://").unwrap_or("");
+    rest.starts_with("127.0.0.1") || rest.starts_with("localhost") || rest.starts_with("[::1]")
 }
 
 fn ttl() -> i64 {
     300
 }
 
-fn sts_from(config: &Path) -> Result<Sts, String> {
+fn sts_from(config: &Path, dev: bool) -> Result<(Sts, Option<String>), String> {
     let f: StsFile = serde_norway::from_str(&read(config)?).map_err(|e| format!("{}: {e}", config.display()))?;
     let base = config.parent().unwrap_or(Path::new("."));
+    if !dev && f.issuer.starts_with("http://") && !is_local_url(&f.issuer) {
+        return Err(format!("issuer `{}` uses plain HTTP; use https or run with --dev", f.issuer));
+    }
+    let mut clients = HashMap::new();
+    for (id, c) in f.clients {
+        let secret = match (c.secret, c.secret_env) {
+            (_, Some(var)) => std::env::var(&var).map_err(|_| format!("client `{id}`: environment variable `{var}` is not set"))?,
+            (Some(s), None) if dev => s,
+            (Some(_), None) => return Err(format!("client `{id}`: literal `secret` is only allowed with --dev; use secret_env")),
+            (None, None) => return Err(format!("client `{id}` needs secret_env")),
+        };
+        clients.insert(
+            id,
+            ClientDef {
+                secret,
+                roles: c.roles,
+                accept_audiences: c.accept_audiences,
+                may_exchange_to: c.may_exchange_to,
+                can_revoke_subjects: c.can_revoke_subjects,
+            },
+        );
+    }
     let key_path = base.join(&f.key_file);
     let pem = if key_path.exists() { Some(read(&key_path)?) } else { None };
-    let mut sts = Sts::new(StsConfig { issuer: f.issuer, token_ttl_s: f.token_ttl_s, clients: f.clients }, pem.as_deref())?;
+    if pem.is_none() && !dev {
+        return Err(format!("signing key {} not found; create one with `warden dev keygen > {}`", key_path.display(), f.key_file));
+    }
+    let mut sts = Sts::new(StsConfig { issuer: f.issuer, token_ttl_s: f.token_ttl_s, clients }, pem.as_deref())?;
     if pem.is_none() {
         write(&key_path, sts.pem())?;
         eprintln!("created signing key {}", key_path.display());
+    }
+    if let Some(t) = f.trust {
+        let identity = IdentityConfig::from_yaml_str(&read(&base.join(t))?)?;
+        sts = sts.with_external_verifier(warden_identity::Verifier::new(identity));
     }
     if let Some(p) = f.policy {
         let policy = warden_core::Policy::from_yaml_str(&read(&base.join(p))?)?;
@@ -325,15 +383,27 @@ fn sts_from(config: &Path) -> Result<Sts, String> {
             policy.agents.get(from).is_some_and(|a| a.delegation.may_delegate_to.iter().any(|t| t == to))
         }));
     }
-    Ok(sts)
+    Ok((sts, f.listen))
+}
+
+/// Run the token service: discovery, JWKS, client credentials, token exchange with
+/// delegation chains, introspection and revocation.
+pub async fn sts(config: &Path, listen: Option<String>, dev: bool) -> Result<i32, String> {
+    let (sts, file_listen) = sts_from(config, dev)?;
+    let sts = Arc::new(sts);
+    let addr = listen.or(file_listen).unwrap_or_else(|| "127.0.0.1:9400".into());
+    let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| format!("{addr}: {e}"))?;
+    if dev {
+        eprintln!("\x1b[41;97m DEV \x1b[0m warden STS on {addr}, issuer {}", sts.issuer());
+    } else {
+        eprintln!("warden STS on {addr}, issuer {}", sts.issuer());
+    }
+    axum::serve(listener, sts.router()).await.map_err(|e| e.to_string())?;
+    Ok(0)
 }
 
 pub async fn dev_sts(config: &Path, port: u16) -> Result<i32, String> {
-    let sts = Arc::new(sts_from(config)?);
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await.map_err(|e| e.to_string())?;
-    eprintln!("\x1b[41;97m DEV \x1b[0m warden dev STS on port {port}, issuer {}", sts.issuer());
-    axum::serve(listener, sts.router()).await.map_err(|e| e.to_string())?;
-    Ok(0)
+    sts(config, Some(format!("0.0.0.0:{port}")), true).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -347,7 +417,7 @@ pub fn dev_token(
     scopes: &[String],
     ttl: i64,
 ) -> Result<i32, String> {
-    let sts = sts_from(config)?;
+    let (sts, _) = sts_from(config, true)?;
     let roles: Vec<&str> = roles.iter().map(String::as_str).collect();
     let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
     println!("{}", sts.user_token(subject, agent, &roles, json_arg(attrs)?, audience, &scopes, ttl)?);

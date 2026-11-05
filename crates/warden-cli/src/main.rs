@@ -99,6 +99,17 @@ enum Cmd {
         #[command(subcommand)]
         cmd: CatalogCmd,
     },
+    /// Run the token service (token exchange with delegation chains, introspection, revocation).
+    Sts {
+        #[arg(long)]
+        config: PathBuf,
+        /// Address to listen on (overrides `listen:` in the config).
+        #[arg(long)]
+        listen: Option<String>,
+        /// Allow insecure settings (plain-HTTP issuer, literal secrets, generated key).
+        #[arg(long)]
+        dev: bool,
+    },
     /// Development helpers: local STS/IdP and tokens.
     Dev {
         #[command(subcommand)]
@@ -258,6 +269,7 @@ async fn run(cmd: Cmd) -> Result<i32, String> {
                 commands::catalog_accept(&gateway, &lock, &tools, token.as_deref(), dev).await
             }
         },
+        Cmd::Sts { config, listen, dev } => commands::sts(&config, listen, dev).await,
         Cmd::Dev { cmd } => match cmd {
             DevCmd::Keygen => commands::dev_keygen(),
             DevCmd::MockMcp { profile, stdio, port } => {
