@@ -15,6 +15,8 @@
 //! Delegation works as everywhere in warden: a calling agent presents a token whose `act`
 //! chain records who delegated to it, and every agent in the chain must hold the skill's scopes.
 #![forbid(unsafe_code)]
+// Early-return `Result<_, Response>` keeps handlers readable; responses are built once per request.
+#![allow(clippy::result_large_err)]
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
