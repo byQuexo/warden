@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/gateway.schema.json
 # warden-gateway --config gateway.yaml --dev
 # Point the upstream URLs at your real MCP servers; nothing else in the policy changes.
 listen: 127.0.0.1:8088

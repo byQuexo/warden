@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/catalog.schema.json
 # What exists and how risky it is. Anything not listed is denied.
 version: 1
 tool:

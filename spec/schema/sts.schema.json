@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "StsClientFile": {
+      "additionalProperties": false,
+      "properties": {
+        "accept_audiences": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "can_revoke_subjects": {
+          "default": false,
+          "type": "boolean"
+        },
+        "may_exchange_to": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "roles": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "secret": {
+          "default": null,
+          "description": "Literal secret: only allowed with --dev.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secret_env": {
+          "default": null,
+          "description": "Environment variable holding the secret.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/sts.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "clients": {
+      "additionalProperties": {
+        "$ref": "#/$defs/StsClientFile"
+      },
+      "type": "object"
+    },
+    "issuer": {
+      "type": "string"
+    },
+    "key_file": {
+      "type": "string"
+    },
+    "listen": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "policy": {
+      "default": null,
+      "description": "Optional policy whose `may_delegate_to` edges the STS enforces.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "token_ttl_s": {
+      "default": 300,
+      "format": "int64",
+      "type": "integer"
+    },
+    "trust": {
+      "default": null,
+      "description": "identity.yaml of the IdP(s) whose access tokens may be exchanged (e.g. Keycloak).",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "issuer",
+    "key_file"
+  ],
+  "title": "Warden token service",
+  "type": "object"
+}

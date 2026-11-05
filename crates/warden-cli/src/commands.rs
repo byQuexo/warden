@@ -291,9 +291,9 @@ pub fn dev_keygen() -> Result<i32, String> {
     Ok(0)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct StsFile {
+pub(crate) struct StsFile {
     issuer: String,
     key_file: String,
     #[serde(default = "ttl")]
@@ -310,7 +310,7 @@ struct StsFile {
     listen: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct StsClientFile {
     /// Literal secret: only allowed with --dev.

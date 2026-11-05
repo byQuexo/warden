@@ -16,6 +16,7 @@ use crate::model::{AttrValue, Attrs, Principal, Subject, SubjectKind};
 pub const ALLOWED_ALGORITHMS: &[&str] = &["RS256", "ES256", "EdDSA"];
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct IdentityConfig {
     pub version: u32,
@@ -34,6 +35,7 @@ fn default_skew() -> i64 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ScopeClaim {
     /// Token scopes are intersected with role and agent scopes (missing claim = no scopes).
@@ -44,6 +46,7 @@ pub enum ScopeClaim {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct IssuerConfig {
     pub issuer: String,
@@ -61,6 +64,7 @@ pub struct IssuerConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct IntrospectionConfig {
     pub endpoint: String,
@@ -78,6 +82,7 @@ fn default_algorithms() -> Vec<String> {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 #[allow(clippy::large_enum_variant)] // config type, built once
 pub enum MappingRef {
@@ -91,6 +96,7 @@ pub enum MappingRef {
 
 /// Declarative claim mapping using JSON Pointers (RFC 6901).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Mapping {
     pub subject: PathSpec,
@@ -111,6 +117,7 @@ pub struct Mapping {
 
 /// One pointer, or a list of pointers where the first present one wins.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum PathSpec {
     One(String),
@@ -127,6 +134,7 @@ impl PathSpec {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ListSpec {
     Path(String),
@@ -134,6 +142,7 @@ pub enum ListSpec {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ClaimTest {
     pub path: String,

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/policy.schema.json
 # Who may do what. Scopes grant, rules only restrict.
 version: 1
 roles:

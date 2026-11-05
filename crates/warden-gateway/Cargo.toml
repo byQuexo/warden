@@ -36,6 +36,11 @@ hex.workspace = true
 chrono.workspace = true
 rand.workspace = true
 tower-http = { version = "0.6", features = ["catch-panic"] }
+schemars = { workspace = true, optional = true }
+
+[features]
+default = []
+schema = ["dep:schemars", "warden-core/schema"]
 
 [dev-dependencies]
 warden-testkit.workspace = true

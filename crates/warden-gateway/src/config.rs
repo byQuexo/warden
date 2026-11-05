@@ -15,6 +15,7 @@ use crate::gateway::{Gateway, GatewayError, Limits, SinkErrorMode};
 use crate::upstream_auth::UpstreamAuth;
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct GatewayConfig {
     #[serde(default = "default_listen")]
@@ -43,6 +44,7 @@ pub struct GatewayConfig {
 
 /// Circuit breaker per upstream.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct HealthCfg {
     #[serde(default = "d_open_after")]
@@ -62,6 +64,7 @@ fn default_listen() -> String {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct PolicyFiles {
     pub catalog: String,
@@ -78,6 +81,7 @@ fn default_reload() -> u64 {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "resolver", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum AttributesCfg {
     Static {
@@ -95,6 +99,7 @@ fn default_cache() -> u64 {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct LimitsCfg {
     #[serde(default = "d_req")]
@@ -120,6 +125,7 @@ impl Default for LimitsCfg {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct UpstreamCfg {
     /// Streamable HTTP endpoint …
@@ -138,6 +144,7 @@ pub struct UpstreamCfg {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "strategy", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum UpstreamAuthCfg {
     #[default]
@@ -165,6 +172,7 @@ pub enum UpstreamAuthCfg {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ApprovalCfg {
     #[serde(default = "d_approver")]
@@ -194,6 +202,7 @@ impl Default for ApprovalCfg {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct AuditCfg {
     pub sinks: Vec<SinkCfg>,
@@ -207,6 +216,7 @@ fn d_sink_err() -> String {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "type", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum SinkCfg {
     Jsonl {
@@ -241,6 +251,7 @@ fn d_every() -> u64 {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct KillCfg {
     pub file: String,

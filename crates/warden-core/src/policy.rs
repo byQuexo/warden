@@ -21,6 +21,7 @@ use serde_json::Value;
 use crate::catalog::Sensitivity;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Policy {
     pub version: u32,
@@ -53,6 +54,7 @@ impl Policy {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Defaults {
     pub effect: String,
@@ -66,6 +68,7 @@ impl Default for Defaults {
 
 /// What the model sees when an action is denied or held for approval.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ModelMessages {
     /// A fixed, non-revealing sentence. Recommended: details help an attacker iterate.
@@ -77,6 +80,7 @@ pub enum ModelMessages {
 
 /// May tokens without a human user (client credentials) act at all?
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ServiceSubjects {
     #[default]
@@ -85,6 +89,7 @@ pub enum ServiceSubjects {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct AgentDef {
     /// Upper bound of scopes this agent can ever use, whoever it acts for.
@@ -97,6 +102,7 @@ pub struct AgentDef {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Delegation {
     /// Agents this agent may hand work to.
@@ -108,6 +114,7 @@ pub struct Delegation {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Rule {
     pub id: String,
@@ -127,6 +134,7 @@ pub struct Rule {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Match {
     #[serde(default, skip_serializing_if = "Option::is_none")]

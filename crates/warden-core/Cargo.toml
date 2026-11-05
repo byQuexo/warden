@@ -18,6 +18,12 @@ hex.workspace = true
 regex.workspace = true
 sqlparser.workspace = true
 unicode-normalization.workspace = true
+schemars = { workspace = true, optional = true }
+
+[features]
+default = []
+# JSON Schema for the config file formats (`warden schema`).
+schema = ["dep:schemars"]
 
 [lints.clippy]
 unwrap_used = "deny"

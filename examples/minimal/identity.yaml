@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/identity.schema.json
 # Whom to trust and how to read their tokens. The dev STS issues Keycloak-shaped tokens.
 version: 1
 issuers:

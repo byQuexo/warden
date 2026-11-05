@@ -13,6 +13,7 @@ use sha2::{Digest, Sha256};
 use crate::json::canonical;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Lock {
     pub version: u32,

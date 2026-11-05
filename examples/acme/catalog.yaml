@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/catalog.schema.json
 # Acme reference catalog. Names are namespaced by the gateway: <upstream>.<tool>.
 # Anything not listed here (or listed without scopes) is denied.
 version: 1

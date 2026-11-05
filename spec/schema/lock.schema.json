@@ -1,0 +1,28 @@
+{
+  "$id": "https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/lock.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "pins": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "default": {},
+      "description": "kind → namespaced name → `sha256:<hex>`",
+      "type": "object"
+    },
+    "version": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "Warden catalog lock",
+  "type": "object"
+}

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/identity.schema.json
 # Trust the local dev token service (warden dev sts). Swap in your IdP: Keycloak, Auth0,
 # Entra ID, Okta or any OIDC provider - only this file changes.
 version: 1

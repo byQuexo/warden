@@ -60,6 +60,7 @@ clap = { version = "4", features = ["derive"] }
 futures = "0.3"
 tokio-stream = { version = "0.1", features = ["sync"] }
 tempfile = "3"
+schemars = "1"
 
 [profile.release]
 # Handlers rely on unwinding: a panic becomes a deny, the process lives on.

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/suite.schema.json
 # Reference scenarios for examples/devtools. CI requires every case to pass, every rule to be
 # covered and every rule removal ("mutant") to be caught by at least one case.
 suite: devtools

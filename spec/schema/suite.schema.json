@@ -1,0 +1,315 @@
+{
+  "$defs": {
+    "Action": {
+      "description": "Something an agent wants to do.",
+      "properties": {
+        "args": {
+          "default": null
+        },
+        "definition_hash": {
+          "default": null,
+          "description": "Hash of the upstream definition (tool schema, description …) for rug-pull pinning.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "description": "Tool/prompt/skill name or resource URI, as presented by the adapter.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    "AttrValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "format": "double",
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "A free-form attribute value (from token claims or an attribute resolver)."
+    },
+    "Case": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/Action"
+        },
+        "args_raw": {
+          "description": "Raw JSON arguments, parsed strictly (duplicate keys etc.). Overrides `action.args`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "as": {
+          "description": "Name of a principal in `principals`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "context": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Context"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expect": {
+          "$ref": "#/$defs/Expect"
+        },
+        "id": {
+          "type": "string"
+        },
+        "principal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Principal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Inline principal (instead of `as`)."
+        },
+        "title": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "action",
+        "expect"
+      ],
+      "type": "object"
+    },
+    "Context": {
+      "description": "Environment supplied by the adapter, never by the model.",
+      "properties": {
+        "kill_switch": {
+          "$ref": "#/$defs/KillSwitch",
+          "default": "off"
+        },
+        "values": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AttrValue"
+          },
+          "default": {},
+          "description": "Values available to rules as `context.<key>` (e.g. `hour_utc`, `client_ip`).",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "Effect": {
+      "enum": [
+        "allow",
+        "require_approval",
+        "deny"
+      ],
+      "type": "string"
+    },
+    "Expect": {
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Effect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "visible": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "KillSwitch": {
+      "oneOf": [
+        {
+          "enum": [
+            "off"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "writes",
+          "description": "All `write` actions are denied.",
+          "type": "string"
+        },
+        {
+          "const": "all",
+          "description": "Everything is denied.",
+          "type": "string"
+        }
+      ]
+    },
+    "Principal": {
+      "description": "A verified identity: subject + acting agent + delegation chain.\n\n`act` lists the agents that delegated to `agent`, oldest first. For\n`bot → research → action`, `agent = \"action\"` and `act = [\"bot\", \"research\"]`.",
+      "properties": {
+        "act": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "agent": {
+          "type": "string"
+        },
+        "expires_at": {
+          "default": null,
+          "description": "Token expiry (unix seconds), if known.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "issuer": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subject": {
+          "$ref": "#/$defs/Subject"
+        },
+        "token_scopes": {
+          "default": null,
+          "description": "Scopes granted by the token. `None` means \"the token does not restrict scopes\".",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ],
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "subject",
+        "agent"
+      ],
+      "type": "object"
+    },
+    "Subject": {
+      "description": "The party on whose behalf an agent acts: a human user or a service account.",
+      "properties": {
+        "attrs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AttrValue"
+          },
+          "default": {},
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SubjectKind",
+          "default": "user"
+        },
+        "roles": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "SubjectKind": {
+      "enum": [
+        "user",
+        "service"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/suite.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/Case"
+      },
+      "type": "array"
+    },
+    "description": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "principals": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Principal"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "suite": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "suite",
+    "cases"
+  ],
+  "title": "Warden scenario suite",
+  "type": "object"
+}

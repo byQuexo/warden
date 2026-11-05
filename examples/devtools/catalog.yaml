@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/catalog.schema.json
 # Coding agents with access to GitHub, a Postgres database, Slack and the workspace files.
 # Names are namespaced by the gateway: <upstream>.<tool>. Anything not listed is denied.
 version: 1

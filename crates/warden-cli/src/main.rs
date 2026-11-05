@@ -2,6 +2,7 @@
 
 mod commands;
 mod demo;
+mod schema;
 
 use std::path::PathBuf;
 
@@ -117,6 +118,16 @@ enum Cmd {
     },
     /// Run the whole stack in-process and walk through the security story.
     Demo,
+    /// Print the JSON Schema of a config file format, or write all of them to a directory.
+    Schema {
+        /// policy, catalog, identity, gateway, suite, lock or sts.
+        name: Option<String>,
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// With --out: fail if the files there are out of date instead of writing.
+        #[arg(long)]
+        check: bool,
+    },
     /// Measure decision latency over scenario suites (use a release build).
     Bench {
         #[command(flatten)]
@@ -287,6 +298,7 @@ async fn run(cmd: Cmd) -> Result<i32, String> {
             }
         },
         Cmd::Demo => demo::run().await,
+        Cmd::Schema { name, out, check } => schema::run(name.as_deref(), out.as_deref(), check),
         Cmd::Bench { files, suites, decisions } => commands::bench(&files, &suites, decisions),
     }
 }

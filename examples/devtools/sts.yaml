@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/sts.schema.json
 # Local dev token service. Never use in production.
 issuer: http://127.0.0.1:9400
 key_file: sts-key.pem

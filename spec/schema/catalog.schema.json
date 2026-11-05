@@ -1,0 +1,75 @@
+{
+  "$defs": {
+    "CatalogEntry": {
+      "additionalProperties": false,
+      "description": "One catalog entry as written in YAML.",
+      "properties": {
+        "audit_args": {
+          "default": false,
+          "description": "Write argument values in clear text to the audit log (never for `pii`-tagged entries).",
+          "type": "boolean"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scopes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "sensitivity": {
+          "$ref": "#/$defs/Sensitivity",
+          "default": "read"
+        },
+        "tags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Sensitivity": {
+      "enum": [
+        "read",
+        "write"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/catalog.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {
+    "additionalProperties": {
+      "$ref": "#/$defs/CatalogEntry"
+    },
+    "properties": {
+      "_normalize": {
+        "description": "How names in this section are normalized before matching.",
+        "enum": [
+          "name",
+          "uri"
+        ]
+      }
+    },
+    "type": "object"
+  },
+  "description": "Every action an agent may take, with the scopes it needs. Sections are action kinds (tool, resource, prompt, a2a_skill, or a custom kind); keys are glob patterns.",
+  "properties": {
+    "version": {
+      "const": 1
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "Warden catalog",
+  "type": "object"
+}

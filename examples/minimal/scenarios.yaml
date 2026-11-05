@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/suite.schema.json
 suite: minimal
 principals:
   vera: { subject: { id: vera, roles: [viewer] },  agent: helpdesk-bot }

@@ -22,6 +22,7 @@ use crate::glob;
 use crate::model::ActionKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Sensitivity {
     #[default]
@@ -38,6 +39,7 @@ pub enum NormalizeMode {
 
 /// One catalog entry as written in YAML.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct CatalogEntry {
     #[serde(default)]

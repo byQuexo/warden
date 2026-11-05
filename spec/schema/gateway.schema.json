@@ -1,0 +1,526 @@
+{
+  "$defs": {
+    "ApprovalCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "approver": {
+          "default": "deny-all",
+          "type": "string"
+        },
+        "progress_interval_ms": {
+          "default": 10000,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "secret_env": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout_ms": {
+          "default": 120000,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "url": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "AttributesCfg": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "resolver": {
+              "const": "static",
+              "type": "string"
+            }
+          },
+          "required": [
+            "resolver",
+            "file"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "cache_s": {
+              "default": 60,
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "resolver": {
+              "const": "http",
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "resolver",
+            "url"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AuditCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "hmac_key_env": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "on_sink_error": {
+          "default": "deny",
+          "type": "string"
+        },
+        "sinks": {
+          "items": {
+            "$ref": "#/$defs/SinkCfg"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "sinks"
+      ],
+      "type": "object"
+    },
+    "HealthCfg": {
+      "additionalProperties": false,
+      "description": "Circuit breaker per upstream.",
+      "properties": {
+        "cooldown_ms": {
+          "default": 30000,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "open_after_failures": {
+          "default": 3,
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "KillCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    },
+    "LimitsCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "json_depth": {
+          "default": 32,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "request_bytes": {
+          "default": 65536,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "result_bytes": {
+          "default": 262144,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "PolicyFiles": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog": {
+          "type": "string"
+        },
+        "lock": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "policy": {
+          "type": "string"
+        },
+        "reload_ms": {
+          "default": 1000,
+          "description": "Poll interval for hot reload; 0 disables reloading.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "catalog",
+        "policy"
+      ],
+      "type": "object"
+    },
+    "SinkCfg": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "chain": {
+              "default": "gw-1",
+              "type": "string"
+            },
+            "checkpoint_every": {
+              "default": 1000,
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "checkpoint_key_env": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dir": {
+              "type": "string"
+            },
+            "type": {
+              "const": "jsonl",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "dir"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "stdout",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "tracing",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "OpenTelemetry log export (best effort, never denies).",
+          "properties": {
+            "endpoint": {
+              "type": "string"
+            },
+            "headers_env": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "default": {},
+              "description": "Header name → environment variable with its value (e.g. an API key).",
+              "type": "object"
+            },
+            "service_name": {
+              "default": "warden-gateway",
+              "type": "string"
+            },
+            "type": {
+              "const": "otlp",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "endpoint"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "UpstreamAuthCfg": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "strategy": {
+              "const": "none",
+              "type": "string"
+            }
+          },
+          "required": [
+            "strategy"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "strategy": {
+              "const": "static",
+              "type": "string"
+            },
+            "token_env": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "strategy",
+            "token_env"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "audience": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "client_id": {
+              "type": "string"
+            },
+            "scope": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "secret_env": {
+              "type": "string"
+            },
+            "strategy": {
+              "const": "client-credentials",
+              "type": "string"
+            },
+            "token_url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "strategy",
+            "token_url",
+            "client_id",
+            "secret_env"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "audience": {
+              "type": "string"
+            },
+            "client_id": {
+              "type": "string"
+            },
+            "scope": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "secret_env": {
+              "type": "string"
+            },
+            "strategy": {
+              "const": "token-exchange",
+              "type": "string"
+            },
+            "token_url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "strategy",
+            "token_url",
+            "client_id",
+            "secret_env",
+            "audience"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "UpstreamCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "auth": {
+          "$ref": "#/$defs/UpstreamAuthCfg"
+        },
+        "command": {
+          "default": null,
+          "description": "… or a local server started by the gateway and spoken to over stdio.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "pass_env": {
+          "default": [],
+          "description": "Environment variables passed through from the gateway to a stdio server.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "resources": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "url": {
+          "default": null,
+          "description": "Streamable HTTP endpoint …",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/gateway.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admin_listen": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "admin_token_env": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "approval": {
+      "$ref": "#/$defs/ApprovalCfg"
+    },
+    "attributes": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AttributesCfg"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "audit": {
+      "$ref": "#/$defs/AuditCfg"
+    },
+    "health": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HealthCfg"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "identity": {
+      "type": "string"
+    },
+    "kill_switch": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/KillCfg"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "limits": {
+      "$ref": "#/$defs/LimitsCfg"
+    },
+    "listen": {
+      "default": "127.0.0.1:8088",
+      "type": "string"
+    },
+    "policy": {
+      "$ref": "#/$defs/PolicyFiles"
+    },
+    "public_url": {
+      "type": "string"
+    },
+    "upstreams": {
+      "additionalProperties": {
+        "$ref": "#/$defs/UpstreamCfg"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "public_url",
+    "identity",
+    "policy",
+    "audit"
+  ],
+  "title": "Warden gateway",
+  "type": "object"
+}

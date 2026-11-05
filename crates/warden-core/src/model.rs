@@ -10,6 +10,7 @@ use serde_json::Value;
 
 /// A free-form attribute value (from token claims or an attribute resolver).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum AttrValue {
     Bool(bool),
@@ -30,6 +31,7 @@ impl AttrValue {
 pub type Attrs = BTreeMap<String, AttrValue>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum SubjectKind {
     #[default]
@@ -39,6 +41,7 @@ pub enum SubjectKind {
 
 /// The party on whose behalf an agent acts: a human user or a service account.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub struct Subject {
     pub id: String,
@@ -72,6 +75,7 @@ impl Subject {
 /// `act` lists the agents that delegated to `agent`, oldest first. For
 /// `bot → research → action`, `agent = "action"` and `act = ["bot", "research"]`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub struct Principal {
     pub subject: Subject,
@@ -172,8 +176,10 @@ impl From<ActionKind> for String {
 
 /// Something an agent wants to do.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub struct Action {
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub kind: ActionKind,
     /// Tool/prompt/skill name or resource URI, as presented by the adapter.
     pub name: String,
@@ -207,6 +213,7 @@ impl Action {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum KillSwitch {
     #[default]
@@ -219,6 +226,7 @@ pub enum KillSwitch {
 
 /// Environment supplied by the adapter, never by the model.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Context {
     #[serde(default)]
     pub kill_switch: KillSwitch,
@@ -228,6 +236,7 @@ pub struct Context {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Effect {
     Allow,

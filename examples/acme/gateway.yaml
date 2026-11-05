@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/gateway.schema.json
 # Gateway config for the compose stack (paths relative to this file, mounted at /etc/warden).
 listen: 0.0.0.0:8088
 admin_listen: 0.0.0.0:8089

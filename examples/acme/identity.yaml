@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/identity.schema.json
 # Trust the Keycloak realm from compose. Keycloak's issuer is the public URL; keys are
 # fetched over the internal network.
 version: 1

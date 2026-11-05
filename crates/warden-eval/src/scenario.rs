@@ -20,6 +20,7 @@ use warden_core::json::{parse_strict, Limits};
 use warden_core::{Action, Context, Effect, Engine, Principal};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Suite {
     pub suite: String,
@@ -31,6 +32,7 @@ pub struct Suite {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Case {
     pub id: String,
@@ -54,6 +56,7 @@ pub struct Case {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Expect {
     pub effect: Option<Effect>,

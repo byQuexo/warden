@@ -1,0 +1,297 @@
+{
+  "$defs": {
+    "ClaimTest": {
+      "additionalProperties": false,
+      "properties": {
+        "equals": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "prefix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "same_as": {
+          "description": "Holds if the claim equals the claim at this other pointer.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "IntrospectionConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "cache_s": {
+          "default": 0,
+          "description": "Cache positive answers for this many seconds (0 = ask every time).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": "string"
+        },
+        "secret_env": {
+          "description": "Environment variable holding the client secret.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "endpoint",
+        "client_id"
+      ],
+      "type": "object"
+    },
+    "IssuerConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithms": {
+          "default": [
+            "RS256",
+            "ES256"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "audience": {
+          "type": "string"
+        },
+        "introspection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IntrospectionConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "RFC 7662 token introspection: revoked tokens are rejected immediately, and opaque\n(non-JWT) tokens are accepted. Checked on every request (optionally cached)."
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "jwks_uri": {
+          "description": "Explicit JWKS URI; otherwise OIDC discovery is used.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mapping": {
+          "$ref": "#/$defs/MappingRef"
+        }
+      },
+      "required": [
+        "issuer",
+        "audience",
+        "mapping"
+      ],
+      "type": "object"
+    },
+    "ListSpec": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "split": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "split"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Mapping": {
+      "additionalProperties": false,
+      "description": "Declarative claim mapping using JSON Pointers (RFC 6901).",
+      "properties": {
+        "act": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "agent": {
+          "$ref": "#/$defs/PathSpec"
+        },
+        "attrs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ListSpec"
+          },
+          "default": {},
+          "type": "object"
+        },
+        "roles": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scopes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_if": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClaimTest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "subject": {
+          "$ref": "#/$defs/PathSpec"
+        },
+        "token_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClaimTest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "subject",
+        "agent"
+      ],
+      "type": "object"
+    },
+    "MappingRef": {
+      "anyOf": [
+        {
+          "properties": {
+            "attrs": {
+              "additionalProperties": {
+                "$ref": "#/$defs/ListSpec"
+              },
+              "default": {},
+              "type": "object"
+            },
+            "preset": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "preset"
+          ],
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/Mapping"
+        }
+      ]
+    },
+    "PathSpec": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "One pointer, or a list of pointers where the first present one wins."
+    },
+    "ScopeClaim": {
+      "oneOf": [
+        {
+          "const": "required",
+          "description": "Token scopes are intersected with role and agent scopes (missing claim = no scopes).",
+          "type": "string"
+        },
+        {
+          "const": "ignore",
+          "description": "Token scopes are not used.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/identity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "clock_skew_s": {
+      "default": 30,
+      "format": "int64",
+      "type": "integer"
+    },
+    "delegation_issuers": {
+      "default": [],
+      "description": "Issuers trusted to put an `act` (delegation) chain into a token.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "issuers": {
+      "items": {
+        "$ref": "#/$defs/IssuerConfig"
+      },
+      "type": "array"
+    },
+    "scope_claim": {
+      "$ref": "#/$defs/ScopeClaim",
+      "default": "required"
+    },
+    "version": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "issuers"
+  ],
+  "title": "Warden identity",
+  "type": "object"
+}

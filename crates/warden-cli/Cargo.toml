@@ -13,12 +13,12 @@ name = "warden"
 path = "src/main.rs"
 
 [dependencies]
-warden-core.workspace = true
+warden-core = { workspace = true, features = ["schema"] }
 warden-identity.workspace = true
 warden-audit.workspace = true
 warden-mcp.workspace = true
-warden-gateway.workspace = true
-warden-eval.workspace = true
+warden-gateway = { workspace = true, features = ["schema"] }
+warden-eval = { workspace = true, features = ["schema"] }
 warden-testkit.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -28,6 +28,8 @@ tokio.workspace = true
 axum.workspace = true
 reqwest.workspace = true
 tracing-subscriber.workspace = true
+schemars.workspace = true
 
 [dev-dependencies]
+jsonschema = { version = "0.60", default-features = false }
 tempfile.workspace = true

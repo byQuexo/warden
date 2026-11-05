@@ -1,0 +1,213 @@
+{
+  "$defs": {
+    "AgentDef": {
+      "additionalProperties": false,
+      "properties": {
+        "delegation": {
+          "$ref": "#/$defs/Delegation",
+          "default": {
+            "max_depth": 0,
+            "may_delegate_to": []
+          }
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "max": {
+          "default": [],
+          "description": "Upper bound of scopes this agent can ever use, whoever it acts for.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Defaults": {
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect"
+      ],
+      "type": "object"
+    },
+    "Delegation": {
+      "additionalProperties": false,
+      "properties": {
+        "max_depth": {
+          "default": 0,
+          "description": "Longest delegation chain under which this agent may act (0 = only directly).",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "may_delegate_to": {
+          "default": [],
+          "description": "Agents this agent may hand work to.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Match": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Glob over the normalized name / URI.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sensitivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Sensitivity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tag": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ModelMessages": {
+      "description": "What the model sees when an action is denied or held for approval.",
+      "oneOf": [
+        {
+          "const": "generic",
+          "description": "A fixed, non-revealing sentence. Recommended: details help an attacker iterate.",
+          "type": "string"
+        },
+        {
+          "const": "rule_id",
+          "description": "Includes the rule id.",
+          "type": "string"
+        }
+      ]
+    },
+    "Rule": {
+      "additionalProperties": false,
+      "properties": {
+        "approve_if": {
+          "description": "Condition holds → require human approval."
+        },
+        "deny_if": {
+          "description": "Condition holds → deny."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "match": {
+          "$ref": "#/$defs/Match"
+        },
+        "require": {
+          "description": "Condition must hold, otherwise deny."
+        }
+      },
+      "required": [
+        "id",
+        "match"
+      ],
+      "type": "object"
+    },
+    "Sensitivity": {
+      "enum": [
+        "read",
+        "write"
+      ],
+      "type": "string"
+    },
+    "ServiceSubjects": {
+      "description": "May tokens without a human user (client credentials) act at all?",
+      "enum": [
+        "deny",
+        "allow"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/byQuexo/warden/main/spec/schema/policy.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agents": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AgentDef"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "defaults": {
+      "$ref": "#/$defs/Defaults",
+      "default": {
+        "effect": "deny"
+      }
+    },
+    "model_messages": {
+      "$ref": "#/$defs/ModelMessages",
+      "default": "generic"
+    },
+    "roles": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "rules": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Rule"
+      },
+      "type": "array"
+    },
+    "service_subjects": {
+      "$ref": "#/$defs/ServiceSubjects",
+      "default": "deny"
+    },
+    "version": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "Warden policy",
+  "type": "object"
+}
