@@ -5,6 +5,7 @@
 //! { arg: amount, min: 50000 }
 //! { arg: unit, equals: "{subject.attrs.org_unit}" }
 //! { arg: tenant, in: "{subject.attrs.tenants}" }
+//! { arg: doc_ids, subset_of: "{subject.attrs.doc_scope}" }
 //! { context: hour_utc, not_in_range: [6, 20] }
 //! { arg: sql, sql: { dialect: postgres, tables_allow: [deals] } }
 //! { all: [ …, … ] }   { any: [ …, … ] }
@@ -71,6 +72,8 @@ pub enum Operand {
 pub enum Op {
     Equals(Operand),
     In(Operand),
+    /// Every element of a list argument is in the operand list (an empty list holds).
+    SubsetOf(Operand),
     Glob(String),
     Regex(Regex),
     Min(f64),
@@ -85,6 +88,7 @@ impl Op {
         match self {
             Op::Equals(_) => "equals",
             Op::In(_) => "in",
+            Op::SubsetOf(_) => "subset_of",
             Op::Glob(_) => "glob",
             Op::Regex(_) => "regex",
             Op::Min(_) => "min",
@@ -96,7 +100,7 @@ impl Op {
     }
 }
 
-const OP_KEYS: &[&str] = &["equals", "in", "glob", "regex", "min", "max", "not_in_range", "sql", "custom"];
+const OP_KEYS: &[&str] = &["equals", "in", "subset_of", "glob", "regex", "min", "max", "not_in_range", "sql", "custom"];
 
 /// Compile a condition from its YAML/JSON form.
 pub fn compile(v: &Value) -> Result<Cond, String> {
@@ -140,7 +144,7 @@ pub fn compile(v: &Value) -> Result<Cond, String> {
                 }
             }
             if ops.is_empty() {
-                return Err("condition has no operator (equals, in, glob, regex, min, max, not_in_range, sql, custom)".into());
+                return Err("condition has no operator (equals, in, subset_of, glob, regex, min, max, not_in_range, sql, custom)".into());
             }
             Ok(Cond::Check(Check { source, ops }))
         }
@@ -166,6 +170,15 @@ fn compile_op(key: &str, v: &Value) -> Result<Op, String> {
                 _ => return Err("`in` takes a list of strings or a list placeholder".into()),
             }
             Op::In(o)
+        }
+        "subset_of" => {
+            let o = operand(v)?;
+            match &o {
+                Operand::Literal(Value::Array(items)) if items.iter().all(Value::is_string) => {}
+                Operand::Placeholder(_) => {}
+                _ => return Err("`subset_of` takes a list of strings or a list placeholder".into()),
+            }
+            Op::SubsetOf(o)
         }
         "glob" => Op::Glob(v.as_str().ok_or("`glob` must be a string")?.to_string()),
         "regex" => {
@@ -305,7 +318,9 @@ impl Cond {
                 .ops
                 .iter()
                 .filter_map(|o| match o {
-                    Op::Equals(Operand::Placeholder(p)) | Op::In(Operand::Placeholder(p)) => Some(p.clone()),
+                    Op::Equals(Operand::Placeholder(p)) | Op::In(Operand::Placeholder(p)) | Op::SubsetOf(Operand::Placeholder(p)) => {
+                        Some(p.clone())
+                    }
                     _ => None,
                 })
                 .collect(),
@@ -422,6 +437,21 @@ fn eval_op(op: &Op, value: &Value, env: &Env) -> Tri {
                 };
                 let s = clean_str(value, "in")?;
                 tri(items.iter().any(|i| i.as_str() == Some(s)))
+            }
+            Op::SubsetOf(o) => {
+                let list = resolve(o, env).map_err(Tri::Unknown)?;
+                let Value::Array(allowed) = list else {
+                    return Err(Tri::Unknown("`subset_of` operand did not resolve to a list".into()));
+                };
+                let Value::Array(items) = value else {
+                    return Err(Tri::Unknown(format!("`subset_of` expects a list, got {}", type_name(value))));
+                };
+                let mut all = true;
+                for i in items {
+                    let s = clean_str(i, "subset_of")?;
+                    all &= allowed.iter().any(|a| a.as_str() == Some(s));
+                }
+                tri(all)
             }
             Op::Glob(p) => tri(glob::matches(p, clean_str(value, "glob")?, '/')),
             Op::Regex(re) => tri(re.is_match(clean_str(value, "regex")?)),

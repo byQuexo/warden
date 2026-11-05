@@ -65,7 +65,8 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
     for r in base.rules() {
         for (_, op) in r.cond.arg_checks() {
             match op {
-                Op::In(Operand::Placeholder(Placeholder::SubjectAttr(k))) => {
+                Op::In(Operand::Placeholder(Placeholder::SubjectAttr(k)))
+                | Op::SubsetOf(Operand::Placeholder(Placeholder::SubjectAttr(k))) => {
                     attrs.insert(k.clone(), AttrValue::List(vec![VALUE.into()]));
                 }
                 Op::Equals(Operand::Placeholder(Placeholder::SubjectAttr(k))) => {
@@ -265,6 +266,7 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
             let wrong = match op {
                 Op::Min(_) | Op::Max(_) | Op::NotInRange(..) => Some(json!("1")),
                 Op::Equals(_) | Op::In(_) | Op::Glob(_) | Op::Regex(_) | Op::Sql(_) => Some(json!(12345)),
+                Op::SubsetOf(_) => Some(json!(VALUE)),
                 Op::Custom(_) => None,
             };
             if let Some(w) = wrong {
@@ -284,6 +286,14 @@ pub fn generate(policy: &Policy, catalog: &Catalog, lock: Option<&Lock>) -> Resu
                 Op::Equals(Operand::Literal(Value::String(s))) => Some(format!("{s}\u{200b}")),
                 Op::In(Operand::Literal(Value::Array(a))) => a.first().and_then(Value::as_str).map(|s| format!("{s}\u{200b}")),
                 _ => None,
+            };
+            // For list arguments the invisible character hides in one element.
+            let invisible: Option<Value> = match op {
+                Op::SubsetOf(Operand::Placeholder(_)) => Some(json!([format!("{VALUE}\u{200b}")])),
+                Op::SubsetOf(Operand::Literal(Value::Array(a))) => {
+                    a.first().and_then(Value::as_str).map(|s| json!([format!("{s}\u{200b}")]))
+                }
+                _ => invisible.map(Value::String),
             };
             if let Some(v) = invisible {
                 push(
