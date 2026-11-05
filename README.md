@@ -119,8 +119,8 @@ model sees: This action is not permitted.
 ## Why not just fine-grained tokens?
 
 Use them: Warden gives each upstream its own narrow credential and never forwards the user's
-token. But a token describes what a *credential* may do, and an agent setup has three problems
-a token cannot see:
+token. But a token describes what a *credential* may do, and an agent setup needs answers a
+token cannot give:
 
 | | Fine-grained token | Warden |
 |---|---|---|
