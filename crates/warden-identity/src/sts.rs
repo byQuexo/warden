@@ -46,6 +46,9 @@ pub struct ClientDef {
     /// Audiences this client may request. Empty = any.
     #[serde(default)]
     pub may_exchange_to: Vec<String>,
+    /// May revoke every token of a subject (`POST /revoke` with `sub=`), e.g. an admin console.
+    #[serde(default)]
+    pub can_revoke_subjects: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -65,6 +68,10 @@ pub struct Sts {
     pem: String,
     external: Option<Verifier>,
     delegation: Option<DelegationCheck>,
+    /// Revoked token ids (RFC 7009).
+    revoked_jti: std::sync::Mutex<std::collections::HashSet<String>>,
+    /// Subjects whose tokens issued before the given time are revoked.
+    revoked_subjects: std::sync::Mutex<HashMap<String, i64>>,
 }
 
 #[derive(Debug)]
@@ -108,7 +115,18 @@ impl Sts {
         .map_err(|e| e.to_string())?;
         let enc = EncodingKey::from_ec_pem(pem.as_bytes()).map_err(|e| e.to_string())?;
         let dec = DecodingKey::from_jwk(&jwk).map_err(|e| e.to_string())?;
-        Ok(Self { cfg, enc, dec, jwk, kid, pem, external: None, delegation: None })
+        Ok(Self {
+            cfg,
+            enc,
+            dec,
+            jwk,
+            kid,
+            pem,
+            external: None,
+            delegation: None,
+            revoked_jti: std::sync::Mutex::new(std::collections::HashSet::new()),
+            revoked_subjects: std::sync::Mutex::new(HashMap::new()),
+        })
     }
 
     /// Trust subject tokens from external issuers (e.g. Keycloak) for token exchange.
@@ -138,6 +156,7 @@ impl Sts {
         if let Value::Object(m) = &mut claims {
             m.insert("iss".into(), json!(self.cfg.issuer));
             m.insert("iat".into(), json!(now));
+            m.insert("jti".into(), json!(hex::encode(rand::random::<[u8; 12]>())));
             m.entry("exp").or_insert(json!(now + self.cfg.token_ttl_s));
         }
         let mut h = Header::new(Algorithm::ES256);
@@ -175,6 +194,8 @@ impl Sts {
             .route("/.well-known/openid-configuration", get(discovery))
             .route("/jwks", get(jwks))
             .route("/token", post(token))
+            .route("/introspect", post(introspect_endpoint))
+            .route("/revoke", post(revoke_endpoint))
             .with_state(self)
     }
 
@@ -196,7 +217,64 @@ impl Sts {
         if exp < now_unix() {
             return Err(invalid("subject token expired".into()));
         }
+        if self.is_revoked(&claims) {
+            return Err(invalid("subject token was revoked".into()));
+        }
         Ok(claims)
+    }
+
+    fn is_revoked(&self, claims: &Value) -> bool {
+        let jti = claims.get("jti").and_then(Value::as_str);
+        if jti.is_some_and(|j| self.revoked_jti.lock().is_ok_and(|r| r.contains(j))) {
+            return true;
+        }
+        let sub = claims.get("sub").and_then(Value::as_str).unwrap_or("");
+        let iat = claims.get("iat").and_then(Value::as_i64).unwrap_or(0);
+        self.revoked_subjects.lock().is_ok_and(|r| r.get(sub).is_some_and(|before| iat <= *before))
+    }
+
+    /// RFC 7662 introspection of tokens this STS issued (or trusts as subject tokens).
+    pub async fn introspect(&self, headers: &HeaderMap, form: &HashMap<String, String>) -> Result<Value, StsError> {
+        self.authenticate(headers, form)?;
+        let Some(token) = form.get("token") else {
+            return Err(StsError::new(StatusCode::BAD_REQUEST, "invalid_request", "token is required"));
+        };
+        Ok(match self.verify_subject(token).await {
+            Ok(Value::Object(mut claims)) => {
+                claims.insert("active".into(), json!(true));
+                let azp = claims.get("azp").cloned().unwrap_or(Value::Null);
+                claims.entry("client_id").or_insert(azp);
+                Value::Object(claims)
+            }
+            _ => json!({"active": false}),
+        })
+    }
+
+    /// RFC 7009 revocation. Extension: `sub=<subject>` revokes all of a subject's current
+    /// tokens (clients with `can_revoke_subjects`), e.g. after a role was removed.
+    pub async fn revoke(&self, headers: &HeaderMap, form: &HashMap<String, String>) -> Result<(), StsError> {
+        let (_, client) = self.authenticate(headers, form)?;
+        if let Some(sub) = form.get("sub") {
+            if !client.can_revoke_subjects {
+                return Err(StsError::new(StatusCode::FORBIDDEN, "unauthorized_client", "client may not revoke subjects"));
+            }
+            if let Ok(mut r) = self.revoked_subjects.lock() {
+                r.insert(sub.clone(), now_unix());
+            }
+            return Ok(());
+        }
+        let Some(token) = form.get("token") else {
+            return Err(StsError::new(StatusCode::BAD_REQUEST, "invalid_request", "token or sub is required"));
+        };
+        // RFC 7009: unknown or invalid tokens are not an error.
+        if let Ok(claims) = self.verify_subject(token).await {
+            if let Some(j) = claims.get("jti").and_then(Value::as_str) {
+                if let Ok(mut r) = self.revoked_jti.lock() {
+                    r.insert(j.to_string());
+                }
+            }
+        }
+        Ok(())
     }
 
     fn authenticate(&self, headers: &HeaderMap, form: &HashMap<String, String>) -> Result<(String, &ClientDef), StsError> {
@@ -330,12 +408,28 @@ async fn discovery(State(sts): State<Arc<Sts>>) -> Json<Value> {
         "jwks_uri": format!("{iss}/jwks"),
         "token_endpoint": format!("{iss}/token"),
         "grant_types_supported": ["client_credentials", TOKEN_EXCHANGE_GRANT],
+        "introspection_endpoint": format!("{iss}/introspect"),
+        "revocation_endpoint": format!("{iss}/revoke"),
         "id_token_signing_alg_values_supported": ["ES256"],
     }))
 }
 
 async fn jwks(State(sts): State<Arc<Sts>>) -> Json<JwkSet> {
     Json(sts.jwks())
+}
+
+async fn introspect_endpoint(State(sts): State<Arc<Sts>>, headers: HeaderMap, Form(form): Form<HashMap<String, String>>) -> Response {
+    match sts.introspect(&headers, &form).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+async fn revoke_endpoint(State(sts): State<Arc<Sts>>, headers: HeaderMap, Form(form): Form<HashMap<String, String>>) -> Response {
+    match sts.revoke(&headers, &form).await {
+        Ok(()) => StatusCode::OK.into_response(),
+        Err(e) => e.into_response(),
+    }
 }
 
 async fn token(State(sts): State<Arc<Sts>>, headers: HeaderMap, Form(form): Form<HashMap<String, String>>) -> Response {

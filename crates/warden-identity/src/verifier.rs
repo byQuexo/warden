@@ -25,6 +25,8 @@ pub struct Verifier {
     cache: Mutex<HashMap<String, KeyCache>>,
     static_keys: HashMap<String, JwkSet>,
     refresh_interval: Duration,
+    /// token hash → (cached at, introspection response)
+    introspection_cache: Mutex<HashMap<String, (Instant, Value)>>,
 }
 
 impl Verifier {
@@ -35,6 +37,7 @@ impl Verifier {
             cache: Mutex::new(HashMap::new()),
             static_keys: HashMap::new(),
             refresh_interval: Duration::from_secs(60),
+            introspection_cache: Mutex::new(HashMap::new()),
         }
     }
 
@@ -56,8 +59,70 @@ impl Verifier {
 
     /// Full verification: signature + claims → principal.
     pub async fn verify(&self, token: &str, now: i64) -> Result<Principal, TokenError> {
-        let (claims, _) = self.verify_signature(token).await?;
+        if token.split('.').count() != 3 {
+            return self.verify_opaque(token, now).await;
+        }
+        let (claims, ic) = self.verify_signature(token).await?;
+        if let Some(intro) = &ic.introspection {
+            // The signature is fine; the issuer still has to confirm the token is active.
+            self.introspect(intro, token).await?;
+        }
         principal_from_claims(&claims, &self.cfg, now)
+    }
+
+    /// Opaque tokens can only be checked by asking the issuer (RFC 7662).
+    async fn verify_opaque(&self, token: &str, now: i64) -> Result<Principal, TokenError> {
+        let mut last = TokenError::Invalid("opaque token and no issuer with an introspection endpoint".into());
+        for ic in self.cfg.issuers.iter().filter(|i| i.introspection.is_some()) {
+            let Some(intro) = &ic.introspection else { continue };
+            match self.introspect(intro, token).await {
+                Ok(mut claims) => {
+                    if let Value::Object(m) = &mut claims {
+                        m.remove("active");
+                        m.entry("iss").or_insert_with(|| Value::String(ic.issuer.clone()));
+                    }
+                    return principal_from_claims(&claims, &self.cfg, now);
+                }
+                Err(e) => last = e,
+            }
+        }
+        Err(last)
+    }
+
+    /// RFC 7662: POST the token; anything but `active: true` is a rejection.
+    async fn introspect(&self, cfg: &warden_core::claims::IntrospectionConfig, token: &str) -> Result<Value, TokenError> {
+        use sha2::{Digest, Sha256};
+        let key = hex::encode(Sha256::digest(token.as_bytes()));
+        if cfg.cache_s > 0 {
+            if let Some((at, v)) = self.introspection_cache.lock().await.get(&key) {
+                if at.elapsed() < Duration::from_secs(cfg.cache_s) {
+                    return Ok(v.clone());
+                }
+            }
+        }
+        let secret = match &cfg.secret_env {
+            Some(name) => std::env::var(name).map_err(|_| TokenError::Invalid(format!("introspection secret `{name}` is not set")))?,
+            None => String::new(),
+        };
+        let resp = self
+            .http
+            .post(&cfg.endpoint)
+            .basic_auth(&cfg.client_id, Some(secret))
+            .form(&[("token", token), ("token_type_hint", "access_token")])
+            .send()
+            .await
+            .map_err(|e| TokenError::Invalid(format!("introspection unavailable: {e}")))?;
+        if !resp.status().is_success() {
+            return Err(TokenError::Invalid(format!("introspection returned HTTP {}", resp.status())));
+        }
+        let v: Value = resp.json().await.map_err(|e| TokenError::Invalid(format!("introspection: {e}")))?;
+        if v.get("active") != Some(&Value::Bool(true)) {
+            return Err(TokenError::Revoked);
+        }
+        if cfg.cache_s > 0 {
+            self.introspection_cache.lock().await.insert(key, (Instant::now(), v.clone()));
+        }
+        Ok(v)
     }
 
     /// Signature-only verification. Returns the claims and the issuer config.

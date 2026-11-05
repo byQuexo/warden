@@ -54,6 +54,23 @@ pub struct IssuerConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jwks_uri: Option<String>,
     pub mapping: MappingRef,
+    /// RFC 7662 token introspection: revoked tokens are rejected immediately, and opaque
+    /// (non-JWT) tokens are accepted. Checked on every request (optionally cached).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub introspection: Option<IntrospectionConfig>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IntrospectionConfig {
+    pub endpoint: String,
+    pub client_id: String,
+    /// Environment variable holding the client secret.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secret_env: Option<String>,
+    /// Cache positive answers for this many seconds (0 = ask every time).
+    #[serde(default)]
+    pub cache_s: u64,
 }
 
 fn default_algorithms() -> Vec<String> {
@@ -231,6 +248,8 @@ pub enum TokenError {
     Mapping(String),
     #[error("signature or format invalid: {0}")]
     Invalid(String),
+    #[error("token was revoked or is no longer active")]
+    Revoked,
 }
 
 impl TokenError {
@@ -245,6 +264,7 @@ impl TokenError {
             TokenError::DelegationIssuer(_) => "delegation_issuer",
             TokenError::Mapping(_) => "mapping",
             TokenError::Invalid(_) => "invalid",
+            TokenError::Revoked => "revoked",
         }
     }
 }
