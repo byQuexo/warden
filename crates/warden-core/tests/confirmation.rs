@@ -69,6 +69,6 @@ fn approve_by_round_trips_and_defaults_to_others() {
 #[test]
 fn approve_by_only_on_approval_rules() {
     let bad = POLICY.replace("approve_if: always\n    approve_by: subject", "deny_if: always\n    approve_by: subject");
-    let err = engine(&bad).err().expect("must not build");
+    let Err(err) = engine(&bad) else { panic!("must not build") };
     assert!(format!("{err}").contains("approve_by"), "{err}");
 }
