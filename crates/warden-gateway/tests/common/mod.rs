@@ -78,6 +78,11 @@ async fn bind() -> (tokio::net::TcpListener, String) {
 }
 
 pub async fn harness() -> Harness {
+    harness_with(POLICY).await
+}
+
+/// The harness with another policy (e.g. the example policy plus a rule under test).
+pub async fn harness_with(policy_yaml: &str) -> Harness {
     // STS = the IdP for this test (Keycloak-shaped tokens) and the token-exchange service.
     let (sts_l, sts_url) = bind().await;
     let mut clients = HashMap::new();
@@ -91,7 +96,7 @@ pub async fn harness() -> Harness {
             ..Default::default()
         },
     );
-    let engine_for_sts = Engine::builder().policy_yaml(POLICY).catalog_yaml(&catalog()).build().unwrap();
+    let engine_for_sts = Engine::builder().policy_yaml(policy_yaml).catalog_yaml(&catalog()).build().unwrap();
     let policy = engine_for_sts.policy().clone();
     let sts = Sts::new(StsConfig { issuer: sts_url.clone(), token_ttl_s: 300, clients }, None).unwrap().with_delegation_check(Arc::new(
         move |from: &str, to: &str| policy.agents.get(from).is_some_and(|a| a.delegation.may_delegate_to.iter().any(|t| t == to)),
@@ -122,7 +127,7 @@ delegation_issuers: [{sts_url}]
     .unwrap();
 
     let lock = lock_for(&[("hr", Profile::Hr), ("crm", Profile::Crm), ("evil", Profile::Evil)]);
-    let engine = Engine::builder().policy_yaml(POLICY).catalog_yaml(&catalog()).lock(Some(lock)).build().unwrap();
+    let engine = Engine::builder().policy_yaml(policy_yaml).catalog_yaml(&catalog()).lock(Some(lock)).build().unwrap();
 
     let audit_dir = tempfile::tempdir().unwrap();
     let (sk, pk) = generate_signing_key();

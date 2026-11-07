@@ -186,6 +186,10 @@ pub fn compile_rules(policy: &Policy) -> (Vec<CompiledRule>, Vec<Finding>) {
     let mut rules = Vec::new();
     let mut findings = Vec::new();
     for r in &policy.rules {
+        if r.approve_by == crate::policy::ApproveBy::Subject && r.approve_if.is_none() {
+            findings.push(Finding::error("rule.approve_by", format!("rule `{}`: approve_by only applies to approve_if rules", r.id)));
+            continue;
+        }
         let Some((kind, v)) = r.condition() else {
             findings
                 .push(Finding::error("rule.condition", format!("rule `{}` must have exactly one of require / approve_if / deny_if", r.id)));
@@ -276,6 +280,10 @@ impl Engine {
     }
     pub fn rules(&self) -> &[CompiledRule] {
         &self.rules
+    }
+    /// Is a hold by this rule decided by the requesting subject itself (`approve_by: subject`)?
+    pub fn approved_by_subject(&self, rule: &str) -> bool {
+        self.policy.rules.iter().any(|r| r.id == rule && r.approve_by == crate::policy::ApproveBy::Subject)
     }
     /// Non-fatal lint findings collected at build time.
     pub fn warnings(&self) -> &[Finding] {

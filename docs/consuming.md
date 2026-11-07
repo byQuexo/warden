@@ -118,7 +118,9 @@ Operators use the admin API (separate port, bearer token):
 
 Answer `{"decision": "approve" | "deny", "approver": "lead@acme", "reason": "…"}`. Optionally echo
 `args_hash`; a mismatch fails the approval. The gateway rejects self-approval, re-checks the
-policy and forwards exactly the approved arguments. Clients that send a `progressToken` and
+policy and forwards exactly the approved arguments. A rule with `approve_by: subject` sends
+`"confirmation": true`: then the subject itself must answer (the user confirms an action taken
+in their name) and any other approver is rejected. Clients that send a `progressToken` and
 accept SSE receive `notifications/progress` while waiting.
 
 ## 2. Rust, in-process

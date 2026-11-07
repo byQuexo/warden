@@ -27,6 +27,21 @@
       },
       "type": "object"
     },
+    "ApproveBy": {
+      "description": "Who may decide an approval.",
+      "oneOf": [
+        {
+          "const": "others",
+          "description": "Anyone but the requesting subject (separation of duties).",
+          "type": "string"
+        },
+        {
+          "const": "subject",
+          "description": "Only the requesting subject: the user confirms what an agent is about to do in their name.",
+          "type": "string"
+        }
+      ]
+    },
     "Defaults": {
       "additionalProperties": false,
       "properties": {
@@ -113,6 +128,10 @@
     "Rule": {
       "additionalProperties": false,
       "properties": {
+        "approve_by": {
+          "$ref": "#/$defs/ApproveBy",
+          "description": "Who decides an `approve_if` hold: other people (default; self-approval is refused) or the\nrequesting subject itself, as a confirmation of its own action."
+        },
         "approve_if": {
           "description": "Condition holds → require human approval."
         },

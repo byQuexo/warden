@@ -131,6 +131,28 @@ pub struct Rule {
     /// Condition holds → deny.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deny_if: Option<Value>,
+    /// Who decides an `approve_if` hold: other people (default; self-approval is refused) or the
+    /// requesting subject itself, as a confirmation of its own action.
+    #[serde(default, skip_serializing_if = "ApproveBy::is_others")]
+    pub approve_by: ApproveBy,
+}
+
+/// Who may decide an approval.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ApproveBy {
+    /// Anyone but the requesting subject (separation of duties).
+    #[default]
+    Others,
+    /// Only the requesting subject: the user confirms what an agent is about to do in their name.
+    Subject,
+}
+
+impl ApproveBy {
+    pub fn is_others(&self) -> bool {
+        *self == ApproveBy::Others
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]

@@ -136,6 +136,57 @@ async fn a7_duplicate_json_keys_are_rejected_before_any_check() {
 
 // ---------- approvals (P) ----------
 
+/// `approve_by: subject`: the user confirms what an agent is about to do in their name. Only
+/// the subject may answer; anyone else is refused, the opposite of an ordinary approval.
+#[tokio::test]
+async fn p_confirmations_are_decided_by_the_subject_only() {
+    let policy = format!(
+        "{POLICY}
+  - id: confirm-writes
+    match: {{ sensitivity: write }}
+    approve_if: always
+    approve_by: subject
+"
+    );
+    let h = harness_with(&policy).await;
+    let sven = h.token("sven");
+    let small = json!({"tenant": "dach", "deal_id": "d-1", "amount": 1000});
+
+    h.approver.answer("approve", "sven", 0);
+    let r = h.call_tool(&sven, "crm.update_deal", small.clone()).await;
+    assert!(!is_denied(&r), "{r}");
+    let req = &h.approver.received()[0];
+    assert_eq!(req["rule"], "confirm-writes");
+    assert_eq!(req["confirmation"], true);
+
+    // Someone else cannot confirm on Sven's behalf.
+    h.approver.answer("approve", "lead@acme", 0);
+    assert!(is_denied(&h.call_tool(&sven, "crm.update_deal", small.clone()).await));
+    // Sven cancels.
+    h.approver.answer("deny", "sven", 0);
+    assert!(is_denied(&h.call_tool(&sven, "crm.update_deal", small).await));
+
+    // A big deal matches the earlier rule first: an ordinary approval, no confirmation flag,
+    // and self-approval stays refused.
+    let big = json!({"tenant": "dach", "deal_id": "d-1", "amount": 80000});
+    h.approver.answer("approve", "sven", 0);
+    assert!(is_denied(&h.call_tool(&sven, "crm.update_deal", big).await));
+    let last = h.approver.received().last().cloned().unwrap();
+    assert_eq!(last["rule"], "big-deals-need-approval");
+    assert!(last.get("confirmation").is_none());
+
+    // Reads are not held at all.
+    let n = h.approver.received().len();
+    assert!(!is_denied(&h.call_tool(&sven, "crm.list_deals", json!({"tenant": "dach"})).await));
+    assert_eq!(h.approver.received().len(), n);
+
+    assert_eq!(h.crm.requests_for("tools/call").len(), 2, "the confirmed write and the read");
+    let granted = h.memory.events_of("approval_granted");
+    assert_eq!(granted.len(), 1);
+    assert_eq!(granted[0]["confirmation"], true);
+    assert_eq!(granted[0]["approver"], "sven");
+}
+
 #[tokio::test]
 async fn p_big_deals_wait_for_a_human_and_approval_is_bound_to_the_arguments() {
     let h = harness().await;

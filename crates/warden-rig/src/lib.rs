@@ -27,7 +27,7 @@ use serde_json::{json, Value};
 use warden_audit::{args_hmac, AuditSink};
 use warden_core::json::{parse_strict, Limits};
 use warden_core::{Action, ActionKind, Context, Decision, Effect, Engine, Principal};
-use warden_gateway::{ApprovalOutcome, ApprovalRequest, Approver};
+use warden_gateway::{approver_allowed, ApprovalOutcome, ApprovalRequest, Approver};
 
 /// Supplies adapter context (time, channel …) for rules that use `context.*`.
 pub type ContextFn = Arc<dyn Fn() -> Context + Send + Sync>;
@@ -132,9 +132,12 @@ impl ScopeHook {
                     rule: d.rule.clone(),
                     reason: d.reason.clone(),
                     policy_version: d.policy_version.clone(),
+                    confirmation: self.engine.approved_by_subject(&d.rule),
                 };
                 match approver.request(&req).await {
-                    ApprovalOutcome::Approved { approver } if approver != self.principal.subject.id => {
+                    ApprovalOutcome::Approved { approver }
+                        if approver_allowed(req.confirmation, &self.principal.subject.id, &approver).is_ok() =>
+                    {
                         let again = self.engine.check(&self.principal, &action, &(self.context)());
                         if again.effect == Effect::Deny || again.policy_version != d.policy_version {
                             Verdict::Skip(NOT_APPROVED.into())

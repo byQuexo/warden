@@ -13,6 +13,9 @@
   scoped to the upstream agent (same subject and `act` chain), so sub-agents can act for the
   user without ever holding the user's token.
 * `subset_of` constraint: every element of a list argument must be in an attribute list.
+* Confirmations: `approve_by: subject` on an `approve_if` rule lets the requesting subject
+  confirm its own action (and only the subject); the webhook request carries
+  `confirmation: true`. Ordinary approvals still refuse self-approval.
 * `warden schema` and JSON Schemas for every config file; examples validate in editors.
 * Reusable GitHub Action (`uses: byQuexo/warden@main`) and nightly cargo-fuzz.
 * `examples/devtools` (GitHub, Postgres, Slack, files) and `warden bench`.

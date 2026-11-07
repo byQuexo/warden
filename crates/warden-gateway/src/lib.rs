@@ -27,7 +27,7 @@ use axum::Router;
 use serde_json::json;
 use tower_http::catch_panic::CatchPanicLayer;
 
-pub use approval::{ApprovalOutcome, ApprovalRequest, Approver, AutoApprove, DenyAll, WebhookApprover};
+pub use approval::{approver_allowed, ApprovalOutcome, ApprovalRequest, Approver, AutoApprove, DenyAll, WebhookApprover};
 pub use gateway::{Gateway, GatewayBuilder, GatewayError, Limits, SinkErrorMode};
 pub use upstream_auth::UpstreamAuth;
 

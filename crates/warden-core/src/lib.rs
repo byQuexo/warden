@@ -35,4 +35,4 @@ pub use error::BuildError;
 pub use lint::{Finding, Level};
 pub use lock::Lock;
 pub use model::{Action, ActionKind, AttrValue, Attrs, Context, Decision, Effect, KillSwitch, Principal, Subject, SubjectKind, TraceStep};
-pub use policy::Policy;
+pub use policy::{ApproveBy, Policy};

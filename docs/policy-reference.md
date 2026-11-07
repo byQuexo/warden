@@ -83,10 +83,31 @@ A bare `*` is rejected by lint.
   require:    <condition>     # condition false → deny
   # or approve_if: <condition> # condition true → require approval
   # or deny_if:    <condition> # condition true → deny
+  approve_by: others          # approve_if only: others (default) or subject
 ```
 
 Exactly one of `require` / `approve_if` / `deny_if`. All matching rules are evaluated.
-`deny` beats `require_approval` beats `allow`.
+`deny` beats `require_approval` beats `allow`. When several `approve_if` rules hold, the first
+one in the file is the one reported (and routed), so put specific approvals before broad ones.
+
+**Approval or confirmation.** By default an approval is decided by someone else: the gateway
+refuses an approval whose approver is the requesting subject (separation of duties: limits,
+four-eyes, sensitive exports). `approve_by: subject` turns the hold into a *confirmation*: only
+the subject may answer, anyone else is refused. Use it for actions the user is entitled to but
+should see before an agent performs them in their name, typically every write:
+
+```yaml
+- id: big-deals-need-approval            # first: decided by sales leadership
+  match: { kind: tool, name: crm.update_deal }
+  approve_if: { arg: amount, min: 50000 }
+- id: confirm-writes                     # everything else the user may write: they confirm it
+  match: { sensitivity: write }
+  approve_if: always
+  approve_by: subject
+```
+
+The webhook request carries `"confirmation": true` for these, and the audit event
+`approval_granted` records `confirmation: true` with the subject as approver.
 
 ### Conditions
 

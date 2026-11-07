@@ -24,7 +24,7 @@ use warden_identity::{enrich, now_unix};
 use warden_mcp::jsonrpc::{self, Message};
 use warden_mcp::{LATEST_PROTOCOL_VERSION, PROTOCOL_VERSIONS};
 
-use crate::approval::{ApprovalOutcome, ApprovalRequest};
+use crate::approval::{approver_allowed, ApprovalOutcome, ApprovalRequest};
 use crate::gateway::{Gateway, Upstream};
 
 fn json_rpc(status: StatusCode, v: Value) -> Response {
@@ -412,6 +412,7 @@ async fn approve(
 ) -> Result<(), String> {
     let denied = "This action was not approved.".to_string();
     let args_hash = args_hmac(&gw.hmac_key, &action.args);
+    let confirmation = gw.engine().approved_by_subject(&d.rule);
     let req = ApprovalRequest {
         v: 1,
         id: hex::encode(rand::random::<[u8; 12]>()),
@@ -425,10 +426,14 @@ async fn approve(
         rule: d.rule.clone(),
         reason: d.reason.clone(),
         policy_version: d.policy_version.clone(),
+        confirmation,
     };
     let mut base = Gateway::principal_fields(p);
     base.insert("approval_id".into(), json!(req.id));
     base.insert("rule".into(), json!(d.rule));
+    if confirmation {
+        base.insert("confirmation".into(), json!(true));
+    }
     base.insert("args_hmac".into(), json!(args_hash));
     if !gw.record("approval_requested", Value::Object(base.clone())) {
         return Err(denied);
@@ -477,8 +482,9 @@ async fn approve(
             fail("approval_denied", format!("{approver}: {reason}"));
             Err(denied)
         }
-        Some(ApprovalOutcome::Approved { approver }) if approver == p.subject.id => {
-            fail("approval_denied", "self-approval is not allowed".into());
+        Some(ApprovalOutcome::Approved { approver }) if approver_allowed(confirmation, &p.subject.id, &approver).is_err() => {
+            let why = approver_allowed(confirmation, &p.subject.id, &approver).err().unwrap_or_default();
+            fail("approval_denied", why.into());
             Err(denied)
         }
         Some(ApprovalOutcome::Approved { approver }) => {

@@ -27,6 +27,20 @@ pub struct ApprovalRequest {
     pub rule: String,
     pub reason: String,
     pub policy_version: String,
+    /// The rule says `approve_by: subject`: the requesting subject confirms its own action, and
+    /// only the subject may answer. Absent (false) for ordinary approvals by others.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub confirmation: bool,
+}
+
+/// May `approver` answer a hold for `subject`? Ordinary approvals refuse self-approval; a
+/// confirmation (`approve_by: subject`) must come from the subject itself.
+pub fn approver_allowed(confirmation: bool, subject: &str, approver: &str) -> Result<(), &'static str> {
+    match (confirmation, approver == subject) {
+        (false, true) => Err("self-approval is not allowed"),
+        (true, false) => Err("a confirmation must come from the requesting subject"),
+        _ => Ok(()),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
