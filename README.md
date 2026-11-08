@@ -16,6 +16,14 @@
   <sub>From CI on every push: the <a href="examples/devtools/eval/reference.yaml">devtools</a> and <a href="examples/acme/eval/reference.yaml">acme</a> scenario suites plus attacks generated from each policy (<code>warden eval --generate --mutate --coverage --gate</code>). Latency from <code>warden bench</code>, release build, one core. → <a href="#results">Results</a></sub>
 </p>
 
+<p align="center">
+  <img alt="Output of cargo run -p warden-cli -- demo: seven scenes with ALLOW, DENY and APPROVAL verdicts and the deciding rule, ending with a verified audit chain, no token passthrough and every verdict as documented." src="docs/assets/screens/demo.png" width="760">
+</p>
+
+**In short:** an agent acting for a user may do exactly what that user may do, through that agent,
+with those arguments, decided in code the model cannot talk to. [Why it exists, what the tests
+prove and what they don't, and what is simulated](docs/story.md).
+
 ## Try it
 
 ```bash
@@ -359,7 +367,7 @@ included. See [packages/warden](packages/warden/README.md).
 
 ## Docs
 
-[Architecture](docs/architecture.md) · [Policy reference](docs/policy-reference.md) ·
+[Story](docs/story.md) · [Architecture](docs/architecture.md) · [Policy reference](docs/policy-reference.md) ·
 [Threat model](docs/threat-model.md) (every threat mapped to its test) ·
 [Using Warden from Rust, TypeScript or any MCP client](docs/consuming.md) · [Roadmap](docs/roadmap.md)
 
