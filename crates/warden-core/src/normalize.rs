@@ -60,6 +60,11 @@ pub fn normalize_uri(raw: &str) -> Result<String, NormalizeError> {
     if authority.is_empty() && path.is_none() {
         return Err(bad());
     }
+    // A dot segment in the authority (`file://../etc/passwd`) is a path step in disguise: a
+    // server that joins host and path would climb out of its root. Found by cargo-fuzz.
+    if authority == "." || authority == ".." {
+        return Err(unsafe_());
+    }
     let mut out = format!("{}://{}", scheme.to_ascii_lowercase(), authority.to_lowercase());
     if let Some(path) = path {
         let segments: Vec<&str> = path.split('/').collect();
@@ -135,6 +140,13 @@ mod tests {
         assert_eq!(normalize_uri("file:///workspace/.env").as_deref(), Ok("file:///workspace/.env"));
         assert!(normalize_uri("file:///workspace/../etc/passwd").is_err());
         assert!(normalize_uri("file://").is_err());
+        // Dot segments as authority (the fuzzer's input was `z.2://../`).
+        assert!(normalize_uri("z.2://../").is_err());
+        assert!(normalize_uri("file://../etc/passwd").is_err());
+        assert!(normalize_uri("file://./etc/passwd").is_err());
+        assert!(normalize_uri("docs://..").is_err());
+        assert!(normalize_uri("docs://%2e%2e/it").is_err());
+        assert_eq!(normalize_uri("docs://a..b/x").as_deref(), Ok("docs://a..b/x"));
     }
 
     #[test]
