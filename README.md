@@ -57,7 +57,13 @@ real tokens over real HTTP:
 8  Evidence
    audit log: 18 events, 2 signed checkpoints — chain verified ✔
    MCP servers received 4 calls, none with a user's token — token passthrough: none ✔
+   every verdict as documented ✔
 ```
+
+The demo checks its own verdicts and exits 1 if anything differs from the output above; CI
+runs it on every push. Everything in it is in-process and simulated: the GitHub, Postgres,
+Slack and file servers are mocks, and the "coding agent" is the demo script calling tools. No
+model is involved; Warden decides the same way whoever makes the call.
 
 ## Three ways to use it
 

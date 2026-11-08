@@ -24,6 +24,9 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked
       - name: Unit, integration and end-to-end tests
         run: cargo test --workspace --locked
+      # The README's one-command demo; it exits 1 if any verdict differs from what it promises.
+      - name: warden demo
+        run: cargo run --locked -p warden-cli -- demo
 
   security-eval:
     name: Security eval gates
