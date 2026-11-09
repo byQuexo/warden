@@ -306,6 +306,73 @@ async fn s2_server_to_client_requests_are_blocked() {
     assert!(h.evil.requests().iter().any(|l| l.method == "<response>"));
 }
 
+#[tokio::test]
+async fn s3_protocol_version_header_must_be_one_this_server_speaks() {
+    let h = harness().await;
+    let sven = h.token("sven");
+    let init = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {"protocolVersion": "2026-07-28", "capabilities": {}, "clientInfo": {"name": "t", "version": "0"}}
+    });
+    let rejected = reqwest::Client::new()
+        .post(&h.url)
+        .bearer_auth(&sven)
+        .header("content-type", "application/json")
+        .header("mcp-protocol-version", "2026-07-28")
+        .json(&init)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(rejected.status(), 400);
+    let body: Value = rejected.json().await.unwrap();
+    assert!(body["error"]["message"].as_str().unwrap().contains("unsupported"), "{body}");
+
+    let ok = reqwest::Client::new()
+        .post(&h.url)
+        .bearer_auth(&sven)
+        .header("content-type", "application/json")
+        .json(&json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "t", "version": "0"}}
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(ok.status(), 200);
+    let sid = ok.headers().get("mcp-session-id").unwrap().to_str().unwrap().to_string();
+    let agreed: Value = ok.json().await.unwrap();
+    assert_eq!(agreed["result"]["protocolVersion"], "2025-06-18");
+    assert_eq!(agreed["result"]["capabilities"]["tools"]["listChanged"], true);
+    assert!(agreed["result"]["capabilities"].get("logging").is_none());
+
+    let mismatch = reqwest::Client::new()
+        .post(&h.url)
+        .bearer_auth(&sven)
+        .header("content-type", "application/json")
+        .header("mcp-session-id", &sid)
+        .header("mcp-protocol-version", "2024-11-05")
+        .json(&json!({"jsonrpc": "2.0", "id": 3, "method": "ping"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(mismatch.status(), 400);
+
+    let assumed = reqwest::Client::new()
+        .post(&h.url)
+        .bearer_auth(&sven)
+        .header("content-type", "application/json")
+        .header("mcp-session-id", &sid)
+        .json(&json!({"jsonrpc": "2.0", "id": 4, "method": "ping"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(assumed.status(), 200);
+}
+
 // ---------- injection & lifecycle (I, L) ----------
 
 #[tokio::test]

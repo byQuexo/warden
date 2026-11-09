@@ -267,8 +267,9 @@ answer follows from the rules, not from running the engine:
   audience, expiry, token type, `act` chain and claim mapping are one implementation.
 - **Restrict-only rules, deny-by-default, fail closed.** Panics, audit failures, approver
   timeouts and unknown values all end in `deny`.
-- **Own MCP and A2A layer** on axum + reqwest instead of an SDK, to control every byte the gateway
-  forwards (strict parsing, server→client request blocking, size caps).
+- **Own MCP server and A2A layer** on axum instead of an SDK, to control every byte the gateway
+  accepts and forwards (strict parsing, server→client request blocking, size caps). The upstream
+  MCP client uses the official SDK, `rmcp`.
 - **Catalog annotations, not upstream ones.** An MCP server claiming `readOnlyHint: true` on a
   write tool changes nothing.
 - **Generic messages to the model.** Rule names and reasons help an attacker iterate, so they go to
@@ -307,7 +308,7 @@ warden/
 │   ├── warden-core/       # pure engine: model, catalog, policy, constraints, delegation, claims, lint
 │   ├── warden-identity/   # JWKS verifier, introspection, STS with act chains + revocation, resolvers
 │   ├── warden-audit/      # hash-chained JSONL, HMAC'd args, Ed25519 checkpoints, OTLP sink, verifier
-│   ├── warden-mcp/        # MCP client and JSON-RPC helpers (Streamable HTTP, SSE, stdio)
+│   ├── warden-mcp/        # MCP client on the official Rust SDK (rmcp), plus JSON-RPC helpers
 │   ├── warden-gateway/    # the MCP gateway (binary + library) and its end-to-end tests
 │   ├── warden-a2a/        # A2A proxy: per-caller agent cards, skill enforcement, task ownership
 │   ├── warden-rig/        # ScopeHook for rig agents
@@ -348,7 +349,7 @@ workflow fuzzes name/URI normalization, strict JSON, policy parsing and decision
 
 ## Quickstart
 
-Requirements: Rust 1.82+ (`rustup`). Docker only for the Keycloak stack, Node 18+ only for the
+Requirements: Rust 1.88+ (`rustup`). Docker only for the Keycloak stack, Node 18+ only for the
 TypeScript package.
 
 ```bash

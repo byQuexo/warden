@@ -35,7 +35,7 @@ in production. The original design document (German) is in [design/plan-de.md](d
 
 | Design | Implementation | Why |
 |---|---|---|
-| `rmcp` for MCP | own JSON-RPC/Streamable-HTTP layer on axum + reqwest | full control over parsing and forwarding; fewer moving parts |
+| `rmcp` for MCP | `rmcp` 3.9 for the upstream client (Streamable HTTP, stdio, initialize, version selection). The gateway's own server stays a custom axum handler | the server authenticates, parses with strict JSON limits, and applies policy before an SDK server handler would see the call |
 | `agent-approval-gate` crate for approvals | `Approver` trait + versioned webhook protocol in the gateway | no dependency on an unpublished crate version |
 | `rig` hook adapter | `warden-rig`: `ScopeHook` for rig-agent 0.46 (`on_dispatch`), pinned exactly | rig is pre-1.0 |
 | A2A adapter crate | `warden-a2a`: own JSON-RPC proxy (agent-card filtering, skill checks, task ownership) instead of `a2a-lf` | full control over parsing, same pattern as the MCP gateway |

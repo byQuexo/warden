@@ -19,7 +19,8 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.82"
+# rmcp 3.9 (the official MCP SDK) requires 1.88.
+rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/byQuexo/warden"
 authors = ["Tim Gühnemann"]
@@ -45,7 +46,7 @@ sqlparser = { version = "0.63", features = ["visitor"] }
 unicode-normalization = "0.1"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "stream", "form", "query"] }
 jsonwebtoken = "9"
 p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "pem"] }
 rand = "0.8"
