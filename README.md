@@ -233,8 +233,9 @@ answer follows from the rules, not from running the engine:
   audience, expiry, token type, `act` chain and claim mapping are one implementation.
 - **Restrict-only rules, deny-by-default, fail closed.** Panics, audit failures, approver
   timeouts and unknown values all end in `deny`.
-- **Own MCP and A2A layer** on axum + reqwest instead of an SDK, to control every byte the gateway
-  forwards (strict parsing, server→client request blocking, size caps).
+- **Own MCP server and A2A layer** on axum instead of an SDK, to control every byte the gateway
+  accepts and forwards (strict parsing, server→client request blocking, size caps). The upstream
+  MCP client uses the official SDK, `rmcp`.
 - **Catalog annotations, not upstream ones.** An MCP server claiming `readOnlyHint: true` on a
   write tool changes nothing.
 - **Generic messages to the model.** Rule names and reasons help an attacker iterate, so they go to

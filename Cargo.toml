@@ -46,7 +46,7 @@ sqlparser = { version = "0.63", features = ["visitor"] }
 unicode-normalization = "0.1"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "stream", "form", "query"] }
 jsonwebtoken = "9"
 p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "pem"] }
 rand = "0.8"

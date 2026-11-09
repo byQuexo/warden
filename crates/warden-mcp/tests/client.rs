@@ -74,6 +74,12 @@ async fn handle(State(log): State<Arc<Mutex<Log>>>, headers: HeaderMap, body: By
                 .body(body.into())
                 .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
         }
+        "ping" => json!({}),
+        "slow" => {
+            // Longer than the test client's timeout: the response never arrives in time.
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+            json!({})
+        }
         _ => {
             return (StatusCode::OK, json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32601, "message": "nope"}}).to_string())
                 .into_response();
@@ -84,7 +90,8 @@ async fn handle(State(log): State<Arc<Mutex<Log>>>, headers: HeaderMap, body: By
         .body(json!({"jsonrpc": "2.0", "id": id, "result": result}).to_string().into())
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
     if method == "initialize" {
-        response.headers_mut().insert("mcp-session-id", "sess-1".parse().unwrap());
+        let n = log.lock().map(|l| l.messages.iter().filter(|m| m["method"] == "initialize").count()).unwrap_or(0);
+        response.headers_mut().insert("mcp-session-id", format!("sess-{n}").parse().unwrap());
     }
     response
 }
@@ -144,4 +151,36 @@ async fn handshake_lists_calls_and_blocks_sampling() {
     assert_eq!(refusal["id"], "srv-1");
     assert_eq!(refusal["error"]["code"], -32601);
     assert_eq!(refusal["error"]["message"], "blocked by warden gateway");
+}
+
+fn initializes(log: &Arc<Mutex<Log>>) -> usize {
+    log.lock().unwrap().messages.iter().filter(|m| m["method"] == "initialize").count()
+}
+
+#[tokio::test]
+async fn concurrent_first_calls_share_one_session() {
+    let (url, log) = serve().await;
+    let client = Arc::new(McpClient::with_timeout(url, std::time::Duration::from_secs(5)));
+    let calls: Vec<_> = (0..8)
+        .map(|_| {
+            let c = Arc::clone(&client);
+            tokio::spawn(async move { c.call(Some("secret"), "ping", json!({})).await.unwrap().result.unwrap() })
+        })
+        .collect();
+    for c in calls {
+        c.await.unwrap();
+    }
+    assert_eq!(initializes(&log), 1);
+}
+
+#[tokio::test]
+async fn a_timed_out_session_is_replaced() {
+    let (url, log) = serve().await;
+    let client = McpClient::with_timeout(url, std::time::Duration::from_secs(1));
+    client.call(Some("secret"), "ping", json!({})).await.unwrap().result.unwrap();
+    let first = client.session_id(Some("secret")).await;
+    assert!(client.call(Some("secret"), "slow", json!({})).await.is_err());
+    client.call(Some("secret"), "ping", json!({})).await.unwrap().result.unwrap();
+    assert_eq!(initializes(&log), 2, "the next call must start a fresh session");
+    assert_ne!(client.session_id(Some("secret")).await, first);
 }

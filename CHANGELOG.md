@@ -7,6 +7,9 @@
   own HTTP server, strict JSON ingress, and application codes `-32001` (forbidden) and `-32002`
   (upstream failure) stay custom. `-32002` collides with MCP's "resource not found"; the number is
   unchanged so existing clients keep matching it. Rust 1.88 or newer is required (was 1.82).
+  The whole workspace moves to reqwest 0.13. Upstream sessions close after 15 minutes idle,
+  a session that times out is replaced, and after a dropped connection only reads are re-sent
+  (`tools/call` is never replayed).
 * Token introspection (RFC 7662) for opaque tokens and instant revocation; the STS gains
   `/introspect`, `/revoke` (RFC 7009, revoke-by-subject) and a production `warden sts` command.
 * stdio upstreams (child process, environment allow-list) next to Streamable HTTP.

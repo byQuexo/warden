@@ -102,7 +102,7 @@ impl ClientHandler for BlockingHandler {
     }
 
     async fn on_cancelled(&self, params: CancelledNotificationParam, _context: NotificationContext<RoleClient>) {
-        let _done = self.finish_note();
+        // Not gated: the order transport does not hold the stream for cancellations.
         self.note("notifications/cancelled", &params);
     }
 

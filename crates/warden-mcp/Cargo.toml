@@ -16,8 +16,7 @@ tokio.workspace = true
 tracing.workspace = true
 futures.workspace = true
 http = "1"
-# Pinned to the same reqwest major rmcp 3.9 uses. The rest of the workspace stays on 0.12.
-reqwest = { version = "0.13.2", default-features = false, features = ["json", "stream", "rustls"] }
+reqwest.workspace = true
 sse-stream = "0.2.4"
 rmcp = { version = "=3.9.0", default-features = false, features = [
     "client",
