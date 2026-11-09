@@ -416,8 +416,7 @@ included. See [packages/warden](packages/warden/README.md).
 [Threat model](docs/threat-model.md) (every threat mapped to its test) ·
 [Using Warden from Rust, TypeScript or any MCP client](docs/consuming.md) · [Roadmap](docs/roadmap.md)
 
-Developed in an agentic development workflow; architecture, threat model, evaluation and review
-by Tim.
+Developed in an agentic development workflow.
 
 ## License
 
