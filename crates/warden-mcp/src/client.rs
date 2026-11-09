@@ -1,20 +1,34 @@
 //! An MCP client for Streamable HTTP and stdio servers.
 //!
 //! One session per credential: the gateway talks to an upstream with a per-user token,
-//! so sessions are keyed by the bearer token. Server→client requests that arrive in a
-//! response stream are answered with an error and reported in [`Outcome::blocked`].
+//! so sessions are keyed by the bearer token. The wire protocol is `rmcp`'s. Server→client
+//! requests that arrive while a call is in flight are answered with an error and reported
+//! in [`Outcome::blocked`].
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
-use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use rmcp::model::{
+    ClientCapabilities, ClientConfig, ClientRequest, CustomRequest, CustomResult, Implementation, ProtocolVersion, ServerResult,
+};
+use rmcp::service::{RunningService, ServiceError, ServiceExt};
+use rmcp::transport::streamable_http_client::{StreamableHttpClientTransport, StreamableHttpClientTransportConfig};
+use rmcp::transport::{ConfigureCommandExt, TokioChildProcess};
+use rmcp::RoleClient;
 use serde_json::{json, Value};
+use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use crate::jsonrpc;
-use crate::stdio::{StdioConn, StdioSpec};
-use crate::{sse, LATEST_PROTOCOL_VERSION};
+use crate::block::BlockingHandler;
+use crate::http::RecordingHttp;
+use crate::order::{OrderGate, OrderTransport};
+use crate::sse;
+use crate::stdio::StdioSpec;
+use crate::LATEST_PROTOCOL_VERSION;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
@@ -37,20 +51,28 @@ pub struct Outcome {
     pub notifications: Vec<Value>,
 }
 
+pub struct RawResponse {
+    pub status: u16,
+    pub headers: reqwest::header::HeaderMap,
+    pub messages: Vec<Value>,
+}
+
+struct Live {
+    running: RunningService<RoleClient, BlockingHandler>,
+    session: Arc<StdMutex<Option<String>>>,
+    blocked: Arc<StdMutex<Vec<String>>>,
+    notes: Arc<StdMutex<Vec<Value>>>,
+    call: Mutex<()>,
+    alive: AtomicBool,
+}
+
 pub struct McpClient {
     url: String,
     http: reqwest::Client,
-    sessions: Mutex<HashMap<String, Option<String>>>,
-    next_id: AtomicI64,
-    client_name: String,
+    sessions: Mutex<HashMap<String, Arc<Live>>>,
     timeout: Duration,
-    stdio: Option<(StdioSpec, Mutex<Option<std::sync::Arc<StdioConn>>>)>,
-}
-
-pub struct RawResponse {
-    pub status: u16,
-    pub headers: HeaderMap,
-    pub messages: Vec<Value>,
+    stdio: Option<StdioSpec>,
+    info: ClientConfig,
 }
 
 impl McpClient {
@@ -61,12 +83,11 @@ impl McpClient {
     pub fn with_timeout(url: impl Into<String>, timeout: Duration) -> Self {
         Self {
             url: url.into(),
-            http: reqwest::Client::builder().timeout(timeout).build().unwrap_or_default(),
+            http: http_client(timeout),
             sessions: Mutex::new(HashMap::new()),
-            next_id: AtomicI64::new(1),
-            client_name: "warden".into(),
             timeout,
             stdio: None,
+            info: client_info(),
         }
     }
 
@@ -74,59 +95,19 @@ impl McpClient {
     /// restarted if it exits. Bearer tokens are ignored: the server is not on the network.
     pub fn stdio(spec: StdioSpec) -> Self {
         let mut c = Self::new(format!("stdio:{}", spec.command));
-        c.stdio = Some((spec, Mutex::new(None)));
+        c.stdio = Some(spec);
         c
-    }
-
-    async fn call_stdio(
-        &self,
-        spec: &StdioSpec,
-        slot: &Mutex<Option<std::sync::Arc<StdioConn>>>,
-        method: &str,
-        params: Value,
-    ) -> Result<Outcome, ClientError> {
-        let conn = {
-            let mut guard = slot.lock().await;
-            match guard.as_ref().filter(|c| c.is_alive()) {
-                Some(c) => c.clone(),
-                None => {
-                    let c = StdioConn::spawn(spec).await?;
-                    let init = json!({
-                        "protocolVersion": LATEST_PROTOCOL_VERSION,
-                        "capabilities": {},
-                        "clientInfo": {"name": self.client_name, "version": env!("CARGO_PKG_VERSION")}
-                    });
-                    let (resp, _) = c.request(self.id(), "initialize", init, self.timeout).await?;
-                    if let Some(e) = resp.get("error") {
-                        return Err(ClientError::Protocol(format!("initialize failed: {e}")));
-                    }
-                    c.notify("notifications/initialized", json!({})).await?;
-                    *guard = Some(c.clone());
-                    c
-                }
-            }
-        };
-        let (resp, blocked) = conn.request(self.id(), method, params, self.timeout).await?;
-        let result = match (resp.get("result"), resp.get("error")) {
-            (Some(r), _) => Ok(r.clone()),
-            (None, Some(e)) => Err((
-                e.get("code").and_then(Value::as_i64).unwrap_or(jsonrpc::INTERNAL_ERROR),
-                e.get("message").and_then(Value::as_str).unwrap_or("error").to_string(),
-            )),
-            _ => Err((jsonrpc::INTERNAL_ERROR, "empty response".into())),
-        };
-        Ok(Outcome { result, blocked, notifications: vec![] })
     }
 
     pub fn url(&self) -> &str {
         &self.url
     }
 
-    fn id(&self) -> Value {
-        Value::from(self.next_id.fetch_add(1, Ordering::Relaxed))
-    }
-
     /// POST one JSON-RPC message and collect all messages of the response (JSON or SSE).
+    ///
+    /// This is not the session state machine. It exists so a caller can send a body the
+    /// SDK will not construct (duplicate object keys) and can read the HTTP status.
+    /// The session id comes from [`Self::session_id`].
     pub async fn post_raw(&self, bearer: Option<&str>, session: Option<&str>, body: &Value) -> Result<RawResponse, ClientError> {
         let mut req = self
             .http
@@ -163,89 +144,57 @@ impl McpClient {
 
     /// The session id currently used for this bearer token, if any.
     pub async fn session_id(&self, bearer: Option<&str>) -> Option<String> {
-        self.sessions.lock().await.get(bearer.unwrap_or("")).cloned().flatten()
-    }
-
-    async fn initialize(&self, bearer: Option<&str>) -> Result<Option<String>, ClientError> {
-        let body = jsonrpc::request(
-            self.id(),
-            "initialize",
-            json!({
-                "protocolVersion": LATEST_PROTOCOL_VERSION,
-                "capabilities": {},
-                "clientInfo": {"name": self.client_name, "version": env!("CARGO_PKG_VERSION")}
-            }),
-        );
-        let r = self.post_raw(bearer, None, &body).await?;
-        if r.status >= 400 {
-            return Err(ClientError::Status(r.status, describe(&r.messages)));
+        if self.stdio.is_some() {
+            return None;
         }
-        let session = r.headers.get("mcp-session-id").and_then(|v| v.to_str().ok()).map(str::to_string);
-        if let Some(e) = r.messages.iter().find_map(|m| m.get("error")) {
-            return Err(ClientError::Protocol(format!("initialize failed: {e}")));
-        }
-        let _ = self.post_raw(bearer, session.as_deref(), &jsonrpc::notification("notifications/initialized", json!({}))).await?;
-        self.sessions.lock().await.insert(bearer.unwrap_or("").to_string(), session.clone());
-        Ok(session)
+        let key = bearer.unwrap_or("");
+        let guard = self.sessions.lock().await;
+        guard.get(key).and_then(|live| live.session.lock().ok().and_then(|g| g.clone()))
     }
 
     /// Send a request, initializing a session first if needed.
     pub async fn call(&self, bearer: Option<&str>, method: &str, params: Value) -> Result<Outcome, ClientError> {
-        if let Some((spec, slot)) = &self.stdio {
-            return self.call_stdio(spec, slot, method, params).await;
-        }
-        let key = bearer.unwrap_or("").to_string();
-        for attempt in 0..2 {
-            let existing = self.sessions.lock().await.get(&key).cloned();
-            let session = match existing {
-                Some(s) => s,
-                None => self.initialize(bearer).await?,
-            };
-            let id = self.id();
-            let r = self.post_raw(bearer, session.as_deref(), &jsonrpc::request(id.clone(), method, params.clone())).await?;
-            if r.status == 404 && session.is_some() && attempt == 0 {
-                // Session expired upstream: start a new one once.
-                self.sessions.lock().await.remove(&key);
-                continue;
+        let live = self.live(bearer).await?;
+        match self.call_on(&live, method, params.clone()).await {
+            Err(e) if transport_closed(&e) => {
+                live.alive.store(false, Ordering::SeqCst);
+                let live = self.live(bearer).await?;
+                self.call_on(&live, method, params).await
             }
-            if r.status >= 400 {
-                return Err(ClientError::Status(r.status, describe(&r.messages)));
-            }
-            return self.collect(bearer, session.as_deref(), &id, r.messages).await;
+            other => other,
         }
-        Err(ClientError::Protocol("session could not be re-established".into()))
     }
 
-    async fn collect(&self, bearer: Option<&str>, session: Option<&str>, id: &Value, messages: Vec<Value>) -> Result<Outcome, ClientError> {
-        let mut blocked = Vec::new();
-        let mut notifications = Vec::new();
-        let mut result = None;
-        for m in messages {
-            match jsonrpc::classify(&m) {
-                jsonrpc::Message::Request { id: rid, method, .. } => {
-                    blocked.push(method.to_string());
-                    let reply = jsonrpc::error(rid.clone(), jsonrpc::METHOD_NOT_FOUND, "blocked by warden gateway");
-                    let _ = self.post_raw(bearer, session, &reply).await;
-                }
-                jsonrpc::Message::Notification { .. } => notifications.push(m),
-                jsonrpc::Message::Response if m.get("id") == Some(id) => {
-                    result = Some(match (m.get("result"), m.get("error")) {
-                        (Some(r), _) => Ok(r.clone()),
-                        (None, Some(e)) => Err((
-                            e.get("code").and_then(Value::as_i64).unwrap_or(jsonrpc::INTERNAL_ERROR),
-                            e.get("message").and_then(Value::as_str).unwrap_or("error").to_string(),
-                        )),
-                        _ => Err((jsonrpc::INTERNAL_ERROR, "empty response".into())),
-                    });
-                }
-                _ => {}
-            }
+    async fn call_on(&self, live: &Live, method: &str, params: Value) -> Result<Outcome, ClientError> {
+        let _guard = live.call.lock().await;
+        if let Ok(mut b) = live.blocked.lock() {
+            b.clear();
         }
-        let result = result.ok_or_else(|| ClientError::Protocol("no response for request id".into()))?;
+        if let Ok(mut n) = live.notes.lock() {
+            n.clear();
+        }
+        let params = if params.is_null() { None } else { Some(params) };
+        let request = ClientRequest::CustomRequest(CustomRequest::new(method, params));
+        let sent = tokio::time::timeout(self.timeout, live.running.send_request(request)).await;
+        let result = match sent {
+            Err(_) => return Err(ClientError::Protocol(format!("{method}: no response in time"))),
+            Ok(Ok(ServerResult::CustomResult(CustomResult(v)))) => Ok(v),
+            Ok(Ok(other)) => match serde_json::to_value(&other) {
+                Ok(v) => Ok(v),
+                Err(e) => return Err(ClientError::Protocol(e.to_string())),
+            },
+            Ok(Err(ServiceError::McpError(e))) => Err((i64::from(e.code.0), e.message.to_string())),
+            Ok(Err(e)) => return Err(ClientError::Protocol(e.to_string())),
+        };
+        let blocked = live.blocked.lock().map(|mut b| std::mem::take(&mut *b)).unwrap_or_default();
+        let notifications = live.notes.lock().map(|mut n| std::mem::take(&mut *n)).unwrap_or_default();
         Ok(Outcome { result, blocked, notifications })
     }
 
     /// Call a paginated `*/list` method and concatenate `key` arrays.
+    ///
+    /// The page cap is Warden's. A cursor that never ends must not pin a gateway
+    /// worker; fifty pages is already more than a catalog this process will enforce.
     pub async fn list_all(&self, bearer: Option<&str>, method: &str, key: &str) -> Result<Vec<Value>, ClientError> {
         let mut out = Vec::new();
         let mut cursor: Option<String> = None;
@@ -266,8 +215,90 @@ impl McpClient {
         }
         Err(ClientError::Protocol(format!("{method}: too many pages")))
     }
+
+    async fn live(&self, bearer: Option<&str>) -> Result<Arc<Live>, ClientError> {
+        if self.stdio.is_some() {
+            return self.stdio_live().await;
+        }
+        let key = bearer.unwrap_or("").to_string();
+        if let Some(live) = self.sessions.lock().await.get(&key).cloned() {
+            if live.alive.load(Ordering::SeqCst) {
+                return Ok(live);
+            }
+        }
+        let live = Arc::new(self.connect_http(bearer).await?);
+        self.sessions.lock().await.insert(key, live.clone());
+        Ok(live)
+    }
+
+    async fn connect_http(&self, bearer: Option<&str>) -> Result<Live, ClientError> {
+        let session = Arc::new(StdMutex::new(None));
+        let http = RecordingHttp::new(self.http.clone(), session.clone());
+        let mut config = StreamableHttpClientTransportConfig::with_uri(self.url.as_str()).reinit_on_expired_session(true);
+        if let Some(token) = bearer {
+            config = config.auth_header(token.to_string());
+        }
+        let transport = StreamableHttpClientTransport::with_client(http, config);
+        self.serve(transport, session).await
+    }
+
+    async fn stdio_live(&self) -> Result<Arc<Live>, ClientError> {
+        let key = "stdio".to_string();
+        if let Some(live) = self.sessions.lock().await.get(&key).cloned() {
+            if live.alive.load(Ordering::SeqCst) {
+                return Ok(live);
+            }
+        }
+        let spec = self.stdio.clone().ok_or_else(|| ClientError::Http("stdio client has no command".into()))?;
+        let live = Arc::new(self.connect_stdio(&spec).await?);
+        self.sessions.lock().await.insert(key, live.clone());
+        Ok(live)
+    }
+
+    async fn connect_stdio(&self, spec: &StdioSpec) -> Result<Live, ClientError> {
+        let command = spec.command.clone();
+        let cmd = Command::new(&spec.command).configure(|cmd| {
+            cmd.args(&spec.args).kill_on_drop(true);
+            for (k, v) in &spec.env {
+                cmd.env(k, v);
+            }
+        });
+        let (transport, _) = TokioChildProcess::builder(cmd)
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| ClientError::Http(format!("cannot start `{command}`: {e}")))?;
+        self.serve(transport, Arc::new(StdMutex::new(None))).await
+    }
+
+    async fn serve<T>(&self, transport: T, session: Arc<StdMutex<Option<String>>>) -> Result<Live, ClientError>
+    where
+        T: rmcp::transport::Transport<RoleClient> + 'static,
+    {
+        let gate = Arc::new(OrderGate::new());
+        let handler = BlockingHandler::new(self.info.clone(), Arc::clone(&gate));
+        let blocked = handler.blocked_handle();
+        let notes = handler.notes_handle();
+        let running = handler.serve(OrderTransport::new(transport, gate)).await.map_err(|e| ClientError::Protocol(e.to_string()))?;
+        Ok(Live { running, session, blocked, notes, call: Mutex::new(()), alive: AtomicBool::new(true) })
+    }
 }
 
-fn describe(messages: &[Value]) -> String {
-    messages.iter().find_map(|m| m.pointer("/error/message").and_then(Value::as_str).map(str::to_string)).unwrap_or_default()
+fn client_info() -> ClientConfig {
+    // LATEST is 2026-07-28, which has no initialize handshake. Offer the newest
+    // revision that still does; the server may negotiate down.
+    ClientConfig::new(ClientCapabilities::default(), Implementation::new("warden", env!("CARGO_PKG_VERSION")))
+        .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE)
+}
+
+fn http_client(timeout: Duration) -> reqwest::Client {
+    // Idle pooling stalls the next POST on Linux when the previous body was not
+    // fully consumed. The SDK disables it for the same reason.
+    reqwest::Client::builder().timeout(timeout).pool_max_idle_per_host(0).build().unwrap_or_else(|_| reqwest::Client::new())
+}
+
+fn transport_closed(err: &ClientError) -> bool {
+    match err {
+        ClientError::Protocol(m) | ClientError::Http(m) => m.contains("Transport closed") || m.contains("stdio server exited"),
+        ClientError::Status(_, _) => false,
+    }
 }

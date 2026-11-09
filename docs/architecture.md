@@ -40,7 +40,7 @@ flowchart LR
 | `warden-core` | model, catalog, policy, normalization, constraints, delegation, claims → principal, lint, decision + trace | **none** (no clock, no network) |
 | `warden-identity` | JWT signature verification (OIDC discovery, JWKS cache, kid-flood protection), token-exchange STS with delegation chains, attribute resolvers | HTTP |
 | `warden-audit` | hash-chained JSONL sink, HMAC'd arguments, Ed25519 checkpoints, verifier, tracing sink | files |
-| `warden-mcp` | JSON-RPC/MCP helpers, Streamable HTTP client, SSE parser | HTTP |
+| `warden-mcp` | MCP client on `rmcp` (Streamable HTTP, stdio), JSON-RPC helpers, SSE parser | HTTP |
 | `warden-gateway` | the enforcement point: sessions, list filtering, call enforcement, approvals, pinning, kill switch, hot reload, admin API | HTTP |
 | `warden-eval` | scenario runner, attack generator, policy mutation testing, CI gates | none |
 | `warden-cli` | `warden` binary (lint, explain, eval, audit, catalog, dev STS, demo) | — |

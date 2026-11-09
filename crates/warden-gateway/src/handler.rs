@@ -22,10 +22,13 @@ use warden_core::normalize::{collision_key, normalize_name, normalize_uri};
 use warden_core::{Action, ActionKind, Decision, Effect, Principal};
 use warden_identity::{enrich, now_unix};
 use warden_mcp::jsonrpc::{self, Message};
-use warden_mcp::{LATEST_PROTOCOL_VERSION, PROTOCOL_VERSIONS};
+use warden_mcp::{
+    gateway_initialize_result, initialize_version_header_error, negotiate_protocol_version, session_version_header_error,
+    LATEST_PROTOCOL_VERSION,
+};
 
 use crate::approval::{approver_allowed, ApprovalOutcome, ApprovalRequest};
-use crate::gateway::{Gateway, Upstream};
+use crate::gateway::{Gateway, SessionRecord, Upstream};
 
 fn json_rpc(status: StatusCode, v: Value) -> Response {
     (status, [("content-type", "application/json")], v.to_string()).into_response()
@@ -82,10 +85,10 @@ fn check_session(gw: &Gateway, headers: &HeaderMap, p: &Principal) -> Result<Str
     let Some(sid) = headers.get("mcp-session-id").and_then(|v| v.to_str().ok()) else {
         return Err(json_rpc(StatusCode::BAD_REQUEST, jsonrpc::error(Value::Null, jsonrpc::INVALID_REQUEST, "missing Mcp-Session-Id")));
     };
-    let owner = gw.sessions.lock().ok().and_then(|s| s.get(sid).cloned());
-    match owner {
+    let record = gw.sessions.lock().ok().and_then(|s| s.get(sid).cloned());
+    match record {
         None => Err(json_rpc(StatusCode::NOT_FOUND, jsonrpc::error(Value::Null, jsonrpc::INVALID_REQUEST, "unknown session"))),
-        Some(o) if o != p.identity_key() => {
+        Some(o) if o.owner != p.identity_key() => {
             let mut f = Gateway::principal_fields(p);
             f.insert("session".into(), json!(sid));
             gw.record("session_mismatch", Value::Object(f));
@@ -94,8 +97,17 @@ fn check_session(gw: &Gateway, headers: &HeaderMap, p: &Principal) -> Result<Str
                 jsonrpc::error(Value::Null, jsonrpc::FORBIDDEN, "session belongs to a different principal"),
             ))
         }
-        Some(_) => Ok(sid.to_string()),
+        Some(o) => {
+            if let Some(why) = session_version_header_error(protocol_header(headers), &o.protocol) {
+                return Err(json_rpc(StatusCode::BAD_REQUEST, jsonrpc::error(Value::Null, jsonrpc::INVALID_REQUEST, why)));
+            }
+            Ok(sid.to_string())
+        }
     }
+}
+
+fn protocol_header(headers: &HeaderMap) -> Option<&str> {
+    headers.get("mcp-protocol-version").and_then(|v| v.to_str().ok())
 }
 
 pub async fn post(State(gw): State<Gateway>, headers: HeaderMap, body: Bytes) -> Response {
@@ -132,17 +144,15 @@ pub async fn post(State(gw): State<Gateway>, headers: HeaderMap, body: Bytes) ->
 
     if method == "initialize" {
         let sid = new_session_id();
-        if let Ok(mut s) = gw.sessions.lock() {
-            s.insert(sid.clone(), p.identity_key());
-        }
         let requested = params.get("protocolVersion").and_then(Value::as_str).unwrap_or(LATEST_PROTOCOL_VERSION);
-        let version = if PROTOCOL_VERSIONS.contains(&requested) { requested } else { LATEST_PROTOCOL_VERSION };
-        let result = json!({
-            "protocolVersion": version,
-            "capabilities": {"tools": {"listChanged": true}, "resources": {}, "prompts": {}, "completions": {}},
-            "serverInfo": {"name": "warden-gateway", "version": env!("CARGO_PKG_VERSION")},
-            "instructions": "Tools are filtered for the signed-in user and agent. Every call is checked again."
-        });
+        if let Some(why) = initialize_version_header_error(protocol_header(&headers), requested) {
+            return json_rpc(StatusCode::BAD_REQUEST, jsonrpc::error(id, jsonrpc::INVALID_REQUEST, why));
+        }
+        let version = negotiate_protocol_version(requested);
+        if let Ok(mut s) = gw.sessions.lock() {
+            s.insert(sid.clone(), SessionRecord { owner: p.identity_key(), protocol: version.to_string() });
+        }
+        let result = gateway_initialize_result(version, env!("CARGO_PKG_VERSION"));
         return Response::builder()
             .header("content-type", "application/json")
             .header("mcp-session-id", sid)

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+* MCP client (`warden-mcp`) uses the official Rust SDK, [`rmcp` 3.9.0](https://github.com/modelcontextprotocol/rust-sdk).
+  Streamable HTTP, stdio, initialize, and protocol-version selection go through the SDK. The gateway's
+  own HTTP server, strict JSON ingress, and application codes `-32001` (forbidden) and `-32002`
+  (upstream failure) stay custom. `-32002` collides with MCP's "resource not found"; the number is
+  unchanged so existing clients keep matching it. Rust 1.88 or newer is required (was 1.82).
 * Token introspection (RFC 7662) for opaque tokens and instant revocation; the STS gains
   `/introspect`, `/revoke` (RFC 7009, revoke-by-subject) and a production `warden sts` command.
 * stdio upstreams (child process, environment allow-list) next to Streamable HTTP.

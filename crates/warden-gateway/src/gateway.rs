@@ -61,6 +61,13 @@ pub enum SinkErrorMode {
     DenyWrites,
 }
 
+/// An MCP session bound to one principal and the protocol revision negotiated at `initialize`.
+#[derive(Clone, Debug)]
+pub(crate) struct SessionRecord {
+    pub owner: String,
+    pub protocol: String,
+}
+
 pub struct Upstream {
     pub name: String,
     pub client: McpClient,
@@ -81,7 +88,7 @@ pub struct Inner {
     pub(crate) upstreams: BTreeMap<String, Upstream>,
     pub(crate) http: reqwest::Client,
     pub(crate) token_cache: TokenCache,
-    pub(crate) sessions: Mutex<HashMap<String, String>>,
+    pub(crate) sessions: Mutex<HashMap<String, SessionRecord>>,
     pub(crate) approver: Arc<dyn Approver>,
     pub(crate) approval_timeout: Duration,
     pub(crate) progress_interval: Duration,
