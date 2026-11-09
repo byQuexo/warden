@@ -8,7 +8,7 @@ policy used by the demo, the end-to-end tests and the security-eval CI gate.
 | `catalog.yaml` | tools (`hr.*`, `crm.*`, `ticket.*`), resources (`docs://…`), prompts, an A2A skill and a custom `x-payment` kind |
 | `policy.yaml` | 7 roles, 6 agents with delegation edges, 9 restricting rules |
 | `catalog.lock` | pinned definitions of the mock MCP servers (`warden catalog pull`) |
-| `eval/reference.yaml` | 43 hand-written scenarios; CI requires 100% rule coverage and 100% killed mutants |
+| `eval/reference.yaml` | 43 hand-written scenarios; CI requires 100% rule coverage and every rule to be load-bearing (deleting any one rule fails a scenario) |
 | `identity.yaml`, `gateway.yaml`, `compose.yaml`, `keycloak/` | the Docker stack below |
 
 ## Run with Keycloak

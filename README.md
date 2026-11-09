@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <img alt="0 policy violations across 216 scenario and generated attack cases · 100% mutation score and rule coverage · 14 µs per decision (p50), p99 45 µs" src="docs/assets/readme/metrics.svg" width="100%">
+  <img alt="0 policy violations across 216 scenario and generated attack cases · every policy rule load-bearing: deleting any one of the 14 rules makes a scenario fail · 14 µs per decision (p50) in one benchmark run" src="docs/assets/readme/metrics.svg" width="100%">
   <br>
-  <sub>From CI on every push: the <a href="examples/devtools/eval/reference.yaml">devtools</a> and <a href="examples/acme/eval/reference.yaml">acme</a> scenario suites plus attacks generated from each policy (<code>warden eval --generate --mutate --coverage --gate</code>). Latency from <code>warden bench</code>, release build, one core. → <a href="#results">Results</a></sub>
+  <sub>Gated in CI on every push: the <a href="examples/devtools/eval/reference.yaml">devtools</a> and <a href="examples/acme/eval/reference.yaml">acme</a> scenario suites plus attacks generated from each policy (<code>warden eval --generate --mutate --coverage --gate</code>). Latency from <code>warden bench</code> (release build, one core) is a snapshot, not a gate, and varies by machine. → <a href="#results">Results</a></sub>
 </p>
 
 <p align="center">
@@ -21,8 +21,24 @@
 </p>
 
 **In short:** an agent acting for a user may do exactly what that user may do, through that agent,
-with those arguments, decided in code the model cannot talk to. [Why it exists, what the tests
-prove and what they don't, and what is simulated](docs/story.md).
+with those arguments, decided in code the model cannot talk to.
+
+- **Problem.** Agents usually get one broad service token per tool server (every user gets the
+  union) or the user's own token is passed through to every server. What the agent may do is
+  then written in the prompt, and a prompt can be injected.
+- **What Warden adds.** An MCP gateway (and the same engine as a Rust or TypeScript library)
+  that checks every call against user × agent × delegation chain × exact arguments, holds risky
+  writes for a human, gives each upstream its own narrow credential, and writes a
+  hash-chained audit log.
+- **What it is not.** Not a content filter or DLP (allowed actions can still move data), not a
+  sandbox for the agent process, not an identity provider or hosted service, and not
+  production-hardened: one process, state in memory. See [Known limits](#known-limits).
+
+[Why it exists, what the tests prove and what they don't, and what is simulated](docs/story.md).
+[Steward](https://github.com/byQuexo/steward) is a full assistant built on Warden (UI, approvals
+inbox, real-model runs) and serves as its demo application;
+[agent-approval-gate](https://github.com/byQuexo/agent-approval-gate) is the smaller
+predecessor that only gates approvals.
 
 ## Try it
 
@@ -68,10 +84,19 @@ real tokens over real HTTP:
    every verdict as documented ✔
 ```
 
-The demo checks its own verdicts and exits 1 if anything differs from the output above; CI
-runs it on every push. Everything in it is in-process and simulated: the GitHub, Postgres,
-Slack and file servers are mocks, and the "coding agent" is the demo script calling tools. No
-model is involved; Warden decides the same way whoever makes the call.
+The block above is an excerpt (the ALLOW rows and scene 7, the kill switch, are cut). The demo
+compares every verdict with the list in [`demo.rs`](crates/warden-cli/src/demo.rs) and exits 1
+on any difference; CI runs it on every push. Everything in it is in-process and simulated: the
+GitHub, Postgres, Slack and file servers are mocks, the "coding agent" is the demo script
+calling tools, and every service listens on a random `127.0.0.1` port and stops when the demo
+ends. No model is involved; Warden decides the same way whoever makes the call.
+
+**One case in detail.** Scene 4: `dana` (developer) asks the coding agent to merge PR 42. The
+rule `merges-need-approval` returns `require_approval`; the gateway holds the call, sends the
+exact arguments and their HMAC to the approval webhook, `lead@acme-dev` approves, the gateway
+checks the policy again and only then forwards the call to the GitHub mock with a token
+exchanged for that upstream, never dana's own token. The audit log records the request, the
+approval and the decision.
 
 ## Three ways to use it
 
@@ -187,9 +212,11 @@ sequenceDiagram
 
 ## Results
 
-Every number below is produced by CI on every push.
+The eval table is a CI gate on every push (job `security-eval` in
+[ci.yml](.github/workflows/ci.yml)); reproduce it from the example directory with
+`warden eval --suite eval/reference.yaml --generate --mutate --coverage --gate`.
 
-| Suite | Hand-written | Generated attacks | Passed | Rule coverage | Mutants killed |
+| Suite | Hand-written | Generated attacks | Passed | Rule coverage | Rules load-bearing |
 |---|---|---|---|---|---|
 | [devtools](examples/devtools/eval/reference.yaml) (GitHub, Postgres, Slack, files) | 23 | 51 | **74 / 74** | 5 / 5 | 5 / 5 |
 | [acme](examples/acme/eval/reference.yaml) (enterprise HR, CRM, tickets, Keycloak) | 43 | 99 | **142 / 142** | 9 / 9 | 9 / 9 |
@@ -197,13 +224,20 @@ Every number below is produced by CI on every push.
 Hard gates, all **0**: `scope_violation` (allowed what must be denied), `unapproved_write`,
 `delegation_escalation`, failed cases, baseline regressions.
 
-| What | Result |
-|---|---|
-| Decision latency (`warden bench`, release, 100k decisions) | p50 **14 µs**, p99 **45 µs** |
-| Rust tests (unit, conformance, end-to-end, CLI, binary, rig, A2A, schemas) | **102** passing |
-| End-to-end gateway scenarios over real HTTP | **23** |
-| Conformance vectors run by Rust **and** TypeScript/WASM | **88** decisions + **17** tokens (5 IdP presets) |
-| Keycloak stack in Docker (real tokens through the gateway) | **8 / 8** smoke checks |
+- **Rule coverage:** every rule both fires and holds back in at least one case.
+- **Rules load-bearing** (`--mutate`, reported as `mutation_score`): every policy rule is
+  load-bearing, i.e. deleting any single rule makes at least one hand-written scenario fail
+  ([`mutation.rs`](crates/warden-eval/src/mutation.rs)). This is rule-deletion only. Conditions
+  and thresholds are not mutated, and the suites do not pin every boundary: raising the acme
+  approval threshold `min: 50000` to `50001` still passes all gates.
+
+| What | Result | Reproduce |
+|---|---|---|
+| Rust tests (unit, conformance, end-to-end, CLI, binary, rig, A2A, schemas) | all pass, no services needed | `cargo test --workspace` |
+| End-to-end gateway scenarios over real HTTP (mock MCP servers, real JWTs) | all pass | `cargo test -p warden-gateway --test e2e` |
+| Conformance vectors run by Rust **and** TypeScript/WASM | **88** decisions + **17** tokens (5 IdP presets) | `cargo test -p warden-eval --test conformance`; `npm test` in `packages/warden` |
+| Keycloak stack in Docker (real tokens through the gateway) | **8 / 8** smoke checks (CI job `acme-stack`) | `KEEP=0 ./examples/acme/smoke.sh` |
+| Decision latency, 100k decisions, release build | p50 **14 µs**, p99 **45 µs** in an earlier run; four runs on a Windows laptop (2026-11-09): p50 14–28 µs, p99 59–128 µs. Not a gate; depends on machine and load | `warden bench --suite eval/reference.yaml` in `examples/devtools` |
 
 <details>
 <summary><b>What the generated attacks try</b></summary>
@@ -241,17 +275,28 @@ answer follows from the rules, not from running the engine:
   the audit log, not the model.
 </details>
 
-<details>
-<summary>Known limitations</summary>
+### Known limits
 
+- **State is in memory and ephemeral.** MCP sessions live in a map inside the gateway process
+  ([`gateway.rs`](crates/warden-gateway/src/gateway.rs), `sessions`), with no expiry and no
+  persistence: a restart drops every session and clients must `initialize` again. Pending
+  approvals are held open inside the request (progress notifications, default timeout 120 s):
+  a timeout ends as `deny`, a restart drops the request without forwarding it, and there is no
+  durable approval queue to resume from. The kill
+  switch is in memory too unless `kill_switch.file` is configured. Only the audit log, the
+  policy files and `catalog.lock` are on disk.
+- **Single process.** No shared state between gateway replicas, so sessions do not survive a
+  load balancer switching instances.
+- **The demo is local and simulated.** `warden demo` and the "run locally" setup below use mock
+  MCP servers, a dev token service and loopback addresses. `--dev` additionally allows plain-HTTP
+  issuers on non-loopback hosts, the `auto-approve` approver and an audit log without HMAC key or
+  signed checkpoints; the gateway refuses those settings without it
+  ([`config.rs`](crates/warden-gateway/src/config.rs)).
 - **Exfiltration within allowed actions** is out of scope: if an agent may read deals and send
   mail, it can mail deals. Use agent ceilings and approvals to separate such capabilities.
 - A compromised agent process still holds valid user tokens and can use them within policy.
 - Rate limits, result redaction and a Cedar backend are not built yet; see
   [roadmap](docs/roadmap.md).
-- Approvals hold the request open (with progress notifications); durable approvals across
-  restarts are future work.
-</details>
 
 <details>
 <summary>Project layout</summary>
@@ -289,7 +334,7 @@ warden/
 
 ```bash
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace                          # 102 tests, no services needed
+cargo test --workspace                          # no services needed; cargo prints the counts
 (cd examples/devtools && cargo run -p warden-cli -- eval --suite eval/reference.yaml --generate --mutate --coverage --gate)
 (cd packages/warden && npm install && npm run build:wasm && npm test)   # needs wasm-bindgen-cli 0.2.130
 KEEP=0 ./examples/acme/smoke.sh                 # Keycloak stack, needs Docker
@@ -371,7 +416,7 @@ included. See [packages/warden](packages/warden/README.md).
 [Threat model](docs/threat-model.md) (every threat mapped to its test) ·
 [Using Warden from Rust, TypeScript or any MCP client](docs/consuming.md) · [Roadmap](docs/roadmap.md)
 
-The code was written by Claude; architecture, threat model, evaluation and review are by Tim.
+Developed in an agentic development workflow.
 
 ## License
 

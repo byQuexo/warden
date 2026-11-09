@@ -42,7 +42,7 @@ do this exact thing right now?*
 | Claim | Evidence | What it does *not* prove |
 |---|---|---|
 | The engine decides as specified | conformance vectors run by Rust and TypeScript/WASM; unit tests on constraints, delegation, claims | That a given policy is the right policy |
-| Policies hold under attack | `warden eval --generate` derives attacks from your own catalog and policy (scope boundaries, ceilings, delegation, mistyped and zero-width arguments, homoglyph tool names, duplicate JSON keys, kill switch); `--mutate` removes each rule and requires a case to fail | Attacks the generators do not know; it is systematic, not exhaustive |
+| Policies hold under attack | `warden eval --generate` derives attacks from your own catalog and policy (scope boundaries, ceilings, delegation, mistyped and zero-width arguments, homoglyph tool names, duplicate JSON keys, kill switch); `--mutate` deletes one rule at a time and requires a hand-written case to fail | Attacks the generators do not know (systematic, not exhaustive); changed conditions or thresholds, since only whole rules are deleted |
 | The gateway enforces it over real HTTP | end-to-end tests with real tokens and mock MCP servers; a Docker stack with Keycloak | Behaviour behind a real SaaS MCP server in production |
 | Parsers do not fall over | nightly cargo-fuzz on normalization, strict JSON, policy parsing and engine checks | Absence of logic bugs; fuzzing finds crashes, not wrong answers |
 | The README's demo is true | `warden demo` checks every verdict it prints and exits 1 on any difference; CI runs it | Anything beyond those seven scenes |
